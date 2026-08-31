@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
+
 package com.clockity.app.ui.components
 
 import android.content.Context
@@ -21,8 +23,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -381,6 +382,20 @@ fun DirectTimeInputRow(
     }
 
     val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    // Auto-detect when software keyboard is dismissed to exit back to scroll wheel
+    val isImeVisible = WindowInsets.isImeVisible
+    var wasImeVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isImeVisible) {
+        if (isImeVisible) {
+            wasImeVisible = true
+        } else if (wasImeVisible) {
+            onDone()
+            wasImeVisible = false
+        }
+    }
 
     fun applyDirectTime() {
         val hParsed = hourText.filter { it.isDigit() }.toIntOrNull() ?: 0
@@ -425,7 +440,7 @@ fun DirectTimeInputRow(
                 color = OneUITextPrimary,
                 textAlign = TextAlign.Center
             ),
-            modifier = Modifier.width(72.dp),
+            modifier = Modifier.width(76.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = OneUIBlue,
                 unfocusedBorderColor = OneUIDivider,
@@ -454,7 +469,9 @@ fun DirectTimeInputRow(
                 imeAction = ImeAction.Done
             ),
             keyboardActions = KeyboardActions(onDone = {
+                applyDirectTime()
                 focusManager.clearFocus()
+                keyboardController?.hide()
                 onDone()
             }),
             singleLine = true,
@@ -464,7 +481,7 @@ fun DirectTimeInputRow(
                 color = OneUITextPrimary,
                 textAlign = TextAlign.Center
             ),
-            modifier = Modifier.width(72.dp),
+            modifier = Modifier.width(76.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = OneUIBlue,
                 unfocusedBorderColor = OneUIDivider,
@@ -499,23 +516,12 @@ fun DirectTimeInputRow(
                 }
             }
         }
-
-        Spacer(modifier = Modifier.width(10.dp))
-        IconButton(
-            onClick = onDone,
-            modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(OneUIBlue)
-        ) {
-            Icon(Icons.Default.Check, contentDescription = "Done", tint = OneUIBlack, modifier = Modifier.size(20.dp))
-        }
     }
 }
 
 /**
  * Timer Wheel Duration Picker with 5-row sequence numbers, inline unit labels,
- * and tap-to-type numeric keyboard activation.
+ * and tap-to-type numeric keyboard activation with automatic dismissal.
  */
 @Composable
 fun TimerWheelDurationPicker(
@@ -528,6 +534,23 @@ fun TimerWheelDurationPicker(
     var isKeyboardMode by remember { mutableStateOf(false) }
     var focusedField by remember { mutableIntStateOf(1) } // 0 = hours, 1 = mins, 2 = secs
 
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    // Auto-detect when software keyboard is dismissed by back key/gesture to exit back to scroll wheel
+    val isImeVisible = WindowInsets.isImeVisible
+    var wasImeVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isImeVisible) {
+        if (isImeVisible) {
+            wasImeVisible = true
+        } else if (wasImeVisible && isKeyboardMode) {
+            focusManager.clearFocus()
+            isKeyboardMode = false
+            wasImeVisible = false
+        }
+    }
+
     val hoursList = (0..23).map { String.format("%02d", it) }
     val minutesList = (0..59).map { String.format("%02d", it) }
     val secondsList = (0..59).map { String.format("%02d", it) }
@@ -537,6 +560,17 @@ fun TimerWheelDurationPicker(
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
             .background(OneUICardDark)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                // Tapping outside inputs closes keypad and returns to drum wheels
+                if (isKeyboardMode) {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                    isKeyboardMode = false
+                }
+            }
             .padding(vertical = 14.dp, horizontal = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -546,11 +580,10 @@ fun TimerWheelDurationPicker(
             label = "timer_picker_mode"
         ) { keyboardMode ->
             if (keyboardMode) {
-                // Direct Numeric Keypad Typing View
+                // Direct Numeric Keypad Typing View (without extra checkmark button)
                 val hoursFocus = remember { FocusRequester() }
                 val minutesFocus = remember { FocusRequester() }
                 val secondsFocus = remember { FocusRequester() }
-                val keyboardController = LocalSoftwareKeyboardController.current
 
                 var hourStr by remember(hours) { mutableStateOf(if (hours == 0) "00" else String.format("%02d", hours)) }
                 var minStr by remember(minutes) { mutableStateOf(if (minutes == 0) "00" else String.format("%02d", minutes)) }
@@ -576,7 +609,7 @@ fun TimerWheelDurationPicker(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 12.dp),
+                        .padding(vertical = 16.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -594,13 +627,13 @@ fun TimerWheelDurationPicker(
                             ),
                             singleLine = true,
                             textStyle = LocalTextStyle.current.copy(
-                                fontSize = 24.sp,
+                                fontSize = 28.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = OneUITextPrimary,
                                 textAlign = TextAlign.Center
                             ),
                             modifier = Modifier
-                                .width(68.dp)
+                                .width(74.dp)
                                 .focusRequester(hoursFocus),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = OneUIBlue,
@@ -609,15 +642,15 @@ fun TimerWheelDurationPicker(
                                 unfocusedContainerColor = OneUICardElevated
                             )
                         )
-                        Text("hours", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 2.dp))
+                        Text("hours", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 4.dp))
                     }
 
                     Text(
                         text = ":",
-                        fontSize = 24.sp,
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         color = OneUITextSecondary,
-                        modifier = Modifier.padding(horizontal = 6.dp).offset(y = (-8).dp)
+                        modifier = Modifier.padding(horizontal = 8.dp).offset(y = (-8).dp)
                     )
 
                     // Minutes Field
@@ -634,13 +667,13 @@ fun TimerWheelDurationPicker(
                             ),
                             singleLine = true,
                             textStyle = LocalTextStyle.current.copy(
-                                fontSize = 24.sp,
+                                fontSize = 28.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = OneUITextPrimary,
                                 textAlign = TextAlign.Center
                             ),
                             modifier = Modifier
-                                .width(68.dp)
+                                .width(74.dp)
                                 .focusRequester(minutesFocus),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = OneUIBlue,
@@ -649,15 +682,15 @@ fun TimerWheelDurationPicker(
                                 unfocusedContainerColor = OneUICardElevated
                             )
                         )
-                        Text("min", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 2.dp))
+                        Text("min", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 4.dp))
                     }
 
                     Text(
                         text = ":",
-                        fontSize = 24.sp,
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         color = OneUITextSecondary,
-                        modifier = Modifier.padding(horizontal = 6.dp).offset(y = (-8).dp)
+                        modifier = Modifier.padding(horizontal = 8.dp).offset(y = (-8).dp)
                     )
 
                     // Seconds Field
@@ -674,17 +707,19 @@ fun TimerWheelDurationPicker(
                             ),
                             keyboardActions = KeyboardActions(onDone = {
                                 applyValues()
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
                                 isKeyboardMode = false
                             }),
                             singleLine = true,
                             textStyle = LocalTextStyle.current.copy(
-                                fontSize = 24.sp,
+                                fontSize = 28.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = OneUITextPrimary,
                                 textAlign = TextAlign.Center
                             ),
                             modifier = Modifier
-                                .width(68.dp)
+                                .width(74.dp)
                                 .focusRequester(secondsFocus),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = OneUIBlue,
@@ -693,22 +728,7 @@ fun TimerWheelDurationPicker(
                                 unfocusedContainerColor = OneUICardElevated
                             )
                         )
-                        Text("sec", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 2.dp))
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    IconButton(
-                        onClick = {
-                            applyValues()
-                            isKeyboardMode = false
-                        },
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(OneUIBlue)
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = "Done", tint = OneUIBlack, modifier = Modifier.size(20.dp))
+                        Text("sec", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 4.dp))
                     }
                 }
             } else {
