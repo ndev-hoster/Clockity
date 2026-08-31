@@ -1,10 +1,16 @@
 package com.clockity.app
 
 import android.Manifest
+import android.app.PendingIntent
 import android.app.PictureInPictureParams
+import android.app.RemoteAction
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Bundle
 import android.util.Rational
@@ -19,12 +25,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,6 +56,7 @@ import com.clockity.app.ui.timer.TimerViewModel
 import com.clockity.app.ui.worldclock.WorldClockScreen
 import com.clockity.app.ui.worldclock.WorldClockViewModel
 import com.clockity.app.utils.TimerManager
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -58,6 +67,14 @@ class MainActivity : ComponentActivity() {
 
     private var isInPipMode by mutableStateOf(false)
     private var initialTab by mutableStateOf(ClockTab.ALARM)
+
+    private val pipReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == ACTION_PIP_PLAY_PAUSE) {
+                toggleActiveTimerPlayPause()
+            }
+        }
+    }
 
     private val requestNotificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -75,10 +92,22 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Register PiP action broadcast receiver
+        val filter = IntentFilter(ACTION_PIP_PLAY_PAUSE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(pipReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(pipReceiver, filter)
+        }
+
         setContent {
             ClockityTheme {
                 if (isInPipMode) {
-                    PipTimerView(timerViewModel, stopwatchViewModel)
+                    PipTimerView(
+                        timerViewModel = timerViewModel,
+                        stopwatchViewModel = stopwatchViewModel,
+                        onTogglePlayPause = { toggleActiveTimerPlayPause() }
+                    )
                 } else {
                     MainAppScreen(
                         alarmViewModel = alarmViewModel,
@@ -90,6 +119,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(pipReceiver)
+        } catch (_: Exception) {}
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -104,6 +140,59 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun toggleActiveTimerPlayPause() {
+        val runningTimer = TimerManager.activeTimers.value.firstOrNull { it.isRunning }
+        val pausedTimer = TimerManager.activeTimers.value.firstOrNull { it.isPaused }
+        val pomo = TimerManager.pomodoroState.value
+        val isSwRunning = stopwatchViewModel.uiState.value.isRunning
+
+        if (runningTimer != null) {
+            TimerManager.pauseTimer(runningTimer.id)
+        } else if (pausedTimer != null) {
+            TimerManager.resumeTimer(pausedTimer.id)
+        } else if (pomo.isRunning) {
+            TimerManager.pausePomodoro()
+        } else if (pomo.isPaused) {
+            TimerManager.startPomodoro()
+        } else if (isSwRunning) {
+            stopwatchViewModel.pause()
+        } else if (stopwatchViewModel.uiState.value.elapsedMillis > 0) {
+            stopwatchViewModel.start()
+        }
+        updatePipParams()
+    }
+
+    private fun updatePipParams() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val isTimerRunning = TimerManager.activeTimers.value.any { it.isRunning }
+            val isPomoRunning = TimerManager.pomodoroState.value.isRunning
+            val isSwRunning = stopwatchViewModel.uiState.value.isRunning
+            val isRunning = isTimerRunning || isPomoRunning || isSwRunning
+
+            val intent = Intent(ACTION_PIP_PLAY_PAUSE).apply {
+                setPackage(packageName)
+            }
+            val pendingIntent = PendingIntent.getBroadcast(
+                this,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val icon = Icon.createWithResource(
+                this,
+                if (isRunning) R.drawable.ic_pip_pause else R.drawable.ic_pip_play
+            )
+            val title = if (isRunning) "Pause" else "Resume"
+            val action = RemoteAction(icon, title, title, pendingIntent)
+
+            val params = PictureInPictureParams.Builder()
+                .setAspectRatio(Rational(239, 100))
+                .setActions(listOf(action))
+                .build()
+            setPictureInPictureParams(params)
+        }
+    }
+
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         val runningTimers = TimerManager.activeTimers.value.any { it.isRunning }
@@ -112,8 +201,23 @@ class MainActivity : ComponentActivity() {
 
         if (runningTimers || isPomoRunning || isStopwatchRunning) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                updatePipParams()
+                val isRunning = runningTimers || isPomoRunning || isStopwatchRunning
+                val intent = Intent(ACTION_PIP_PLAY_PAUSE).apply { setPackage(packageName) }
+                val pendingIntent = PendingIntent.getBroadcast(
+                    this, 0, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val icon = Icon.createWithResource(
+                    this,
+                    if (isRunning) R.drawable.ic_pip_pause else R.drawable.ic_pip_play
+                )
+                val title = if (isRunning) "Pause" else "Resume"
+                val action = RemoteAction(icon, title, title, pendingIntent)
+
                 val params = PictureInPictureParams.Builder()
                     .setAspectRatio(Rational(239, 100))
+                    .setActions(listOf(action))
                     .build()
                 enterPictureInPictureMode(params)
             }
@@ -124,13 +228,21 @@ class MainActivity : ComponentActivity() {
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         isInPipMode = isInPictureInPictureMode
+        if (isInPictureInPictureMode) {
+            updatePipParams()
+        }
+    }
+
+    companion object {
+        const val ACTION_PIP_PLAY_PAUSE = "com.clockity.app.ACTION_PIP_PLAY_PAUSE"
     }
 }
 
 @Composable
 fun PipTimerView(
     timerViewModel: TimerViewModel,
-    stopwatchViewModel: StopwatchViewModel
+    stopwatchViewModel: StopwatchViewModel,
+    onTogglePlayPause: () -> Unit
 ) {
     val timerState by timerViewModel.uiState.collectAsState()
     val swState by stopwatchViewModel.uiState.collectAsState()
@@ -141,56 +253,38 @@ fun PipTimerView(
     val timeText: String
     val isRunning: Boolean
     val progress: Float
-    val onTogglePlayPause: () -> Unit
 
     if (runningTimer != null) {
         timeText = runningTimer.formatRemaining()
         isRunning = runningTimer.isRunning
         progress = runningTimer.progress
-        onTogglePlayPause = {
-            if (runningTimer.isRunning) timerViewModel.pauseTimer(runningTimer.id)
-            else timerViewModel.resumeTimer(runningTimer.id)
-        }
     } else if (pomo.isRunning || pomo.isPaused) {
         timeText = pomo.formatRemainingTime()
         isRunning = pomo.isRunning
         progress = pomo.progress
-        onTogglePlayPause = {
-            if (pomo.isRunning) timerViewModel.pausePomodoro()
-            else timerViewModel.startPomodoro()
-        }
     } else if (swState.isRunning || swState.elapsedMillis > 0) {
         val mins = swState.elapsedMillis / 60000
         val secs = (swState.elapsedMillis % 60000) / 1000
         timeText = String.format("%02d:%02d", mins, secs)
         isRunning = swState.isRunning
         progress = ((swState.elapsedMillis % 60000) / 60000f)
-        onTogglePlayPause = {
-            if (swState.isRunning) stopwatchViewModel.pause()
-            else stopwatchViewModel.start()
-        }
     } else {
         timeText = "00:00"
         isRunning = false
         progress = 0f
-        onTogglePlayPause = {}
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(OneUIBlack),
-        contentAlignment = Alignment.Center
+    // Full bleed pill layout matching Samsung One UI dynamic island pill
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = OneUICardElevated,
+        shape = RoundedCornerShape(28.dp),
+        border = BorderStroke(1.dp, OneUIDivider)
     ) {
-        // Floating Pill Container
         Row(
             modifier = Modifier
-                .fillMaxWidth(0.96f)
-                .fillMaxHeight(0.88f)
-                .clip(CircleShape)
-                .background(OneUICardElevated)
-                .border(BorderStroke(1.dp, OneUIDivider), CircleShape)
-                .padding(horizontal = 16.dp),
+                .fillMaxSize()
+                .padding(horizontal = 14.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -198,7 +292,7 @@ fun PipTimerView(
             Text(
                 text = timeText,
                 color = Color.White,
-                fontSize = 26.sp,
+                fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.5).sp
             )
@@ -206,7 +300,7 @@ fun PipTimerView(
             // Right: Circular Progress Ring & Interactive Play/Pause Button
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(36.dp)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -226,7 +320,7 @@ fun PipTimerView(
                     imageVector = if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isRunning) "Pause" else "Resume",
                     tint = Color.White,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(17.dp)
                 )
             }
         }
@@ -260,7 +354,6 @@ fun MainAppScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(OneUIBlack)
                 .padding(innerPadding)
         ) {
             when (currentTab) {
