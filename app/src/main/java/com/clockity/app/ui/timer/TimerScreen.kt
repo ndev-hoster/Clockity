@@ -158,17 +158,48 @@ fun TimerScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 contentPadding = PaddingValues(bottom = 96.dp, top = 4.dp)
             ) {
-                // Quick Presets Row
-                item {
-                    PresetChips(
-                        presets = uiState.presets,
-                        onSelectPreset = { viewModel.startPreset(it) },
-                        onEditPreset = { editingPreset = it },
-                        onAddPreset = { showAddPresetDialog = true }
-                    )
+                // 1. Active Running Timers Section (Rendered FIRST at the top)
+                if (uiState.activeTimers.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Running Timers",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = OneUITextSecondary,
+                            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                        )
+                    }
+
+                    item {
+                        if (uiState.activeTimers.size == 1) {
+                            val timer = uiState.activeTimers.first()
+                            MultiTimerCard(
+                                timer = timer,
+                                onPause = { viewModel.pauseTimer(timer.id) },
+                                onResume = { viewModel.resumeTimer(timer.id) },
+                                onCancel = { viewModel.cancelTimer(timer.id) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else {
+                            androidx.compose.foundation.lazy.LazyRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                items(uiState.activeTimers, key = { it.id }) { timer ->
+                                    MultiTimerCard(
+                                        timer = timer,
+                                        onPause = { viewModel.pauseTimer(timer.id) },
+                                        onResume = { viewModel.resumeTimer(timer.id) },
+                                        onCancel = { viewModel.cancelTimer(timer.id) },
+                                        modifier = Modifier.width(260.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
-                // Custom Timer Picker Card
+                // 2. Custom Timer Picker Card
                 item {
                     Column(
                         modifier = Modifier
@@ -261,27 +292,14 @@ fun TimerScreen(
                     }
                 }
 
-                // Active Running Timers Section
-                if (uiState.activeTimers.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Active Timers",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = OneUITextSecondary,
-                            modifier = Modifier.padding(start = 4.dp, top = 8.dp)
-                        )
-                    }
-
-                    items(uiState.activeTimers, key = { it.id }) { timer ->
-                        MultiTimerCard(
-                            timer = timer,
-                            onPause = { viewModel.pauseTimer(timer.id) },
-                            onResume = { viewModel.resumeTimer(timer.id) },
-                            onCancel = { viewModel.cancelTimer(timer.id) },
-                            onAddMinute = { viewModel.addOneMinute(timer.id) }
-                        )
-                    }
+                // 3. Quick Presets Row
+                item {
+                    PresetChips(
+                        presets = uiState.presets,
+                        onSelectPreset = { viewModel.startPreset(it) },
+                        onEditPreset = { editingPreset = it },
+                        onAddPreset = { showAddPresetDialog = true }
+                    )
                 }
             }
         } else {

@@ -207,37 +207,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        val runningTimers = TimerManager.activeTimers.value.any { it.isRunning || it.isPaused }
-        val isPomoRunning = TimerManager.pomodoroState.value.isRunning || TimerManager.pomodoroState.value.isPaused
-        val isStopwatchRunning = stopwatchViewModel.uiState.value.isRunning
-
-        if (runningTimers || isPomoRunning || isStopwatchRunning) {
-            if (Settings.canDrawOverlays(this)) {
-                // Launch the true 1/3rd sized mini floating pill overlay!
-                val serviceIntent = Intent(this, FloatingTimerService::class.java)
-                startService(serviceIntent)
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                updatePipParams()
-                val isRunning = runningTimers || isPomoRunning || isStopwatchRunning
-                val intent = Intent(ACTION_PIP_PLAY_PAUSE).apply { setPackage(packageName) }
-                val pendingIntent = PendingIntent.getBroadcast(
-                    this, 0, intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-                val icon = Icon.createWithResource(
-                    this,
-                    if (isRunning) R.drawable.ic_pip_pause else R.drawable.ic_pip_play
-                )
-                val title = if (isRunning) "Pause" else "Resume"
-                val action = RemoteAction(icon, title, title, pendingIntent)
-
-                val params = PictureInPictureParams.Builder()
-                    .setAspectRatio(Rational(239, 100))
-                    .setActions(listOf(action))
-                    .build()
-                enterPictureInPictureMode(params)
-            }
-        }
+        // PiP disabled for now
     }
 
     @Deprecated("Deprecated in Java")
