@@ -20,9 +20,13 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -268,9 +272,33 @@ fun AlarmWheelTimePicker(
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
             .background(OneUICardDark)
-            .padding(16.dp),
+            .padding(top = 10.dp, bottom = 14.dp, start = 12.dp, end = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Top Right Mode Indicator & Switcher Button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 4.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = { isKeyboardMode = !isKeyboardMode },
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(CircleShape)
+                    .background(OneUICardElevated)
+            ) {
+                Icon(
+                    imageVector = if (isKeyboardMode) Icons.Default.UnfoldMore else Icons.Default.Keyboard,
+                    contentDescription = if (isKeyboardMode) "Switch to Scroll Wheel" else "Switch to Keyboard Input",
+                    tint = OneUIBlue,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
         AnimatedContent(
             targetState = isKeyboardMode,
             transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -571,9 +599,42 @@ fun TimerWheelDurationPicker(
                     isKeyboardMode = false
                 }
             }
-            .padding(vertical = 14.dp, horizontal = 12.dp),
+            .padding(top = 10.dp, bottom = 14.dp, start = 12.dp, end = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Top Right Mode Indicator & Switcher Button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 2.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = {
+                    if (isKeyboardMode) {
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                        isKeyboardMode = false
+                    } else {
+                        focusedField = 1
+                        isKeyboardMode = true
+                    }
+                },
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(CircleShape)
+                    .background(OneUICardElevated)
+            ) {
+                Icon(
+                    imageVector = if (isKeyboardMode) Icons.Default.UnfoldMore else Icons.Default.Keyboard,
+                    contentDescription = if (isKeyboardMode) "Switch to Scroll Wheel" else "Switch to Numeric Keypad",
+                    tint = OneUIBlue,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
         AnimatedContent(
             targetState = isKeyboardMode,
             transitionSpec = { fadeIn() togetherWith fadeOut() },
