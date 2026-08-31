@@ -34,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -61,7 +60,6 @@ fun ScrollableNumberWheel(
     selectedIndex: Int,
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    unitLabel: String? = null,
     itemHeight: Dp = 38.dp,
     visibleItemsCount: Int = 5,
     isLooping: Boolean = true,
@@ -169,7 +167,6 @@ fun ScrollableNumberWheel(
             items(totalVirtualItems) { virtualIdx ->
                 val actualIdx = virtualIdx % count
                 val distance = kotlin.math.abs(virtualIdx - currentVirtualIndex)
-                val isSelected = distance == 0
 
                 Box(
                     modifier = Modifier
@@ -183,41 +180,19 @@ fun ScrollableNumberWheel(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (isSelected) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = items[actualIdx],
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = OneUITextPrimary
-                            )
-                            if (!unitLabel.isNullOrEmpty()) {
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = unitLabel,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = OneUITextPrimary
-                                )
-                            }
-                        }
-                    } else {
-                        val (fontSize, textColor) = when (distance) {
-                            1 -> 17.sp to OneUITextSecondary
-                            2 -> 13.sp to OneUITextTertiary
-                            else -> 11.sp to Color.Transparent
-                        }
-                        Text(
-                            text = items[actualIdx],
-                            fontSize = fontSize,
-                            fontWeight = FontWeight.Normal,
-                            color = textColor,
-                            textAlign = TextAlign.Center
-                        )
+                    val (fontSize, textColor, fontWeight) = when (distance) {
+                        0 -> Triple(24.sp, OneUITextPrimary, FontWeight.Bold)
+                        1 -> Triple(17.sp, OneUITextSecondary, FontWeight.Normal)
+                        2 -> Triple(13.sp, OneUITextTertiary, FontWeight.Normal)
+                        else -> Triple(11.sp, Color.Transparent, FontWeight.Normal)
                     }
+                    Text(
+                        text = items[actualIdx],
+                        fontSize = fontSize,
+                        fontWeight = fontWeight,
+                        color = textColor,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
@@ -548,8 +523,8 @@ fun DirectTimeInputRow(
 }
 
 /**
- * Timer Wheel Duration Picker with 5-row sequence numbers, inline unit labels,
- * and tap-to-type numeric keyboard activation with automatic dismissal.
+ * Timer Wheel Duration Picker with 5-row sequence numbers, STATIC inline unit labels,
+ * and tap-to-type numeric keyboard activation.
  */
 @Composable
 fun TimerWheelDurationPicker(
@@ -641,7 +616,7 @@ fun TimerWheelDurationPicker(
             label = "timer_picker_mode"
         ) { keyboardMode ->
             if (keyboardMode) {
-                // Direct Numeric Keypad Typing View (without extra checkmark button)
+                // Direct Numeric Keypad Typing View
                 val hoursFocus = remember { FocusRequester() }
                 val minutesFocus = remember { FocusRequester() }
                 val secondsFocus = remember { FocusRequester() }
@@ -793,7 +768,7 @@ fun TimerWheelDurationPicker(
                     }
                 }
             } else {
-                // 5-Row Sequence Wheel Drum View
+                // 5-Row Sequence Wheel Drum View with STATIC Unit Suffixes
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -811,53 +786,113 @@ fun TimerWheelDurationPicker(
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
+                        horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Hours Wheel
-                        ScrollableNumberWheel(
-                            items = hoursList,
-                            selectedIndex = hours.coerceIn(0, 23),
-                            unitLabel = "hours",
-                            onValueChange = { newH ->
-                                onDurationChange(newH, minutes, seconds)
-                            },
-                            onClick = {
-                                focusedField = 0
-                                isKeyboardMode = true
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
+                        // Hours Column (with STATIC "hours" label)
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    focusedField = 0
+                                    isKeyboardMode = true
+                                },
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            ScrollableNumberWheel(
+                                items = hoursList,
+                                selectedIndex = hours.coerceIn(0, 23),
+                                onValueChange = { newH ->
+                                    onDurationChange(newH, minutes, seconds)
+                                },
+                                onClick = {
+                                    focusedField = 0
+                                    isKeyboardMode = true
+                                },
+                                modifier = Modifier.width(36.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = "hours",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = OneUITextPrimary
+                            )
+                        }
 
-                        // Minutes Wheel
-                        ScrollableNumberWheel(
-                            items = minutesList,
-                            selectedIndex = minutes.coerceIn(0, 59),
-                            unitLabel = "min",
-                            onValueChange = { newM ->
-                                onDurationChange(hours, newM, seconds)
-                            },
-                            onClick = {
-                                focusedField = 1
-                                isKeyboardMode = true
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
+                        // Minutes Column (with STATIC "min" label)
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    focusedField = 1
+                                    isKeyboardMode = true
+                                },
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            ScrollableNumberWheel(
+                                items = minutesList,
+                                selectedIndex = minutes.coerceIn(0, 59),
+                                onValueChange = { newM ->
+                                    onDurationChange(hours, newM, seconds)
+                                },
+                                onClick = {
+                                    focusedField = 1
+                                    isKeyboardMode = true
+                                },
+                                modifier = Modifier.width(36.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = "min",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = OneUITextPrimary
+                            )
+                        }
 
-                        // Seconds Wheel
-                        ScrollableNumberWheel(
-                            items = secondsList,
-                            selectedIndex = seconds.coerceIn(0, 59),
-                            unitLabel = "sec",
-                            onValueChange = { newS ->
-                                onDurationChange(hours, minutes, newS)
-                            },
-                            onClick = {
-                                focusedField = 2
-                                isKeyboardMode = true
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
+                        // Seconds Column (with STATIC "sec" label)
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    focusedField = 2
+                                    isKeyboardMode = true
+                                },
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            ScrollableNumberWheel(
+                                items = secondsList,
+                                selectedIndex = seconds.coerceIn(0, 59),
+                                onValueChange = { newS ->
+                                    onDurationChange(hours, minutes, newS)
+                                },
+                                onClick = {
+                                    focusedField = 2
+                                    isKeyboardMode = true
+                                },
+                                modifier = Modifier.width(36.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = "sec",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = OneUITextPrimary
+                            )
+                        }
                     }
                 }
             }
