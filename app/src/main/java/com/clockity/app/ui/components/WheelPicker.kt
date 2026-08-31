@@ -492,7 +492,7 @@ fun DirectTimeInputRow(
 }
 
 /**
- * Timer Wheel & Direct Typing Duration Picker
+ * Timer Wheel Duration Picker
  */
 @Composable
 fun TimerWheelDurationPicker(
@@ -502,8 +502,6 @@ fun TimerWheelDurationPicker(
     onDurationChange: (h: Int, m: Int, s: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var isKeyboardMode by remember { mutableStateOf(false) }
-
     val hoursList = (0..23).map { String.format("%02d", it) }
     val minutesList = (0..59).map { String.format("%02d", it) }
     val secondsList = (0..59).map { String.format("%02d", it) }
@@ -511,225 +509,66 @@ fun TimerWheelDurationPicker(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(OneUICardElevated)
-            .padding(16.dp),
+            .padding(vertical = 12.dp, horizontal = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Header
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Hours
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                ScrollableNumberWheel(
+                    items = hoursList,
+                    selectedIndex = hours.coerceIn(0, 23),
+                    onValueChange = { newH ->
+                        onDurationChange(newH, minutes, seconds)
+                    }
+                )
+                Text("hours", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 4.dp))
+            }
+
             Text(
-                text = if (isKeyboardMode) "Type Duration" else "Scroll Duration (Tap to Type)",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = OneUITextSecondary
+                text = ":",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = OneUITextSecondary,
+                modifier = Modifier.padding(horizontal = 2.dp).offset(y = (-8).dp)
             )
 
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(OneUICardDark)
-                    .clickable { isKeyboardMode = !isKeyboardMode }
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = if (isKeyboardMode) Icons.Default.UnfoldMore else Icons.Default.Keyboard,
-                    contentDescription = "Toggle Mode",
-                    tint = OneUIBlue,
-                    modifier = Modifier.size(16.dp)
+            // Minutes
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                ScrollableNumberWheel(
+                    items = minutesList,
+                    selectedIndex = minutes.coerceIn(0, 59),
+                    onValueChange = { newM ->
+                        onDurationChange(hours, newM, seconds)
+                    }
                 )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = if (isKeyboardMode) "Wheel" else "Keypad",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = OneUIBlue
-                )
+                Text("mins", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 4.dp))
             }
-        }
 
-        Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = ":",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = OneUITextSecondary,
+                modifier = Modifier.padding(horizontal = 2.dp).offset(y = (-8).dp)
+            )
 
-        AnimatedContent(
-            targetState = isKeyboardMode,
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
-            label = "timer_picker_mode"
-        ) { keyboardMode ->
-            if (keyboardMode) {
-                // Direct Text Typing for Timer
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Hours
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        OutlinedTextField(
-                            value = if (hours == 0) "00" else String.format("%02d", hours),
-                            onValueChange = { str ->
-                                val v = str.filter { it.isDigit() }.toIntOrNull() ?: 0
-                                onDurationChange(v.coerceIn(0, 23), minutes, seconds)
-                            },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            textStyle = LocalTextStyle.current.copy(
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = OneUITextPrimary,
-                                textAlign = TextAlign.Center
-                            ),
-                            modifier = Modifier.width(72.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = OneUIBlue,
-                                unfocusedBorderColor = OneUIDivider,
-                                focusedContainerColor = OneUICardDark,
-                                unfocusedContainerColor = OneUICardDark
-                            )
-                        )
-                        Text("hours", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 2.dp))
+            // Seconds
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                ScrollableNumberWheel(
+                    items = secondsList,
+                    selectedIndex = seconds.coerceIn(0, 59),
+                    onValueChange = { newS ->
+                        onDurationChange(hours, minutes, newS)
                     }
-
-                    Text(
-                        text = ":",
-                        fontSize = 30.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = OneUITextSecondary,
-                        modifier = Modifier.padding(start = 6.dp, end = 6.dp, bottom = 12.dp)
-                    )
-
-                    // Minutes
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        OutlinedTextField(
-                            value = if (minutes == 0) "00" else String.format("%02d", minutes),
-                            onValueChange = { str ->
-                                val v = str.filter { it.isDigit() }.toIntOrNull() ?: 0
-                                onDurationChange(hours, v.coerceIn(0, 59), seconds)
-                            },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            textStyle = LocalTextStyle.current.copy(
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = OneUITextPrimary,
-                                textAlign = TextAlign.Center
-                            ),
-                            modifier = Modifier.width(72.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = OneUIBlue,
-                                unfocusedBorderColor = OneUIDivider,
-                                focusedContainerColor = OneUICardDark,
-                                unfocusedContainerColor = OneUICardDark
-                            )
-                        )
-                        Text("mins", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 2.dp))
-                    }
-
-                    Text(
-                        text = ":",
-                        fontSize = 30.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = OneUITextSecondary,
-                        modifier = Modifier.padding(start = 6.dp, end = 6.dp, bottom = 12.dp)
-                    )
-
-                    // Seconds
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        OutlinedTextField(
-                            value = if (seconds == 0) "00" else String.format("%02d", seconds),
-                            onValueChange = { str ->
-                                val v = str.filter { it.isDigit() }.toIntOrNull() ?: 0
-                                onDurationChange(hours, minutes, v.coerceIn(0, 59))
-                            },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            textStyle = LocalTextStyle.current.copy(
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = OneUITextPrimary,
-                                textAlign = TextAlign.Center
-                            ),
-                            modifier = Modifier.width(72.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = OneUIBlue,
-                                unfocusedBorderColor = OneUIDivider,
-                                focusedContainerColor = OneUICardDark,
-                                unfocusedContainerColor = OneUICardDark
-                            )
-                        )
-                        Text("secs", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 2.dp))
-                    }
-                }
-            } else {
-                // Scrollable Drum Wheels
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Hours
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        ScrollableNumberWheel(
-                            items = hoursList,
-                            selectedIndex = hours.coerceIn(0, 23),
-                            onValueChange = { newH ->
-                                onDurationChange(newH, minutes, seconds)
-                            },
-                            onClick = { isKeyboardMode = true }
-                        )
-                        Text("hours", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 2.dp))
-                    }
-
-                    Text(
-                        text = ":",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = OneUITextSecondary,
-                        modifier = Modifier.padding(start = 2.dp, end = 2.dp, bottom = 12.dp)
-                    )
-
-                    // Minutes
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        ScrollableNumberWheel(
-                            items = minutesList,
-                            selectedIndex = minutes.coerceIn(0, 59),
-                            onValueChange = { newM ->
-                                onDurationChange(hours, newM, seconds)
-                            },
-                            onClick = { isKeyboardMode = true }
-                        )
-                        Text("mins", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 2.dp))
-                    }
-
-                    Text(
-                        text = ":",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = OneUITextSecondary,
-                        modifier = Modifier.padding(start = 2.dp, end = 2.dp, bottom = 12.dp)
-                    )
-
-                    // Seconds
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        ScrollableNumberWheel(
-                            items = secondsList,
-                            selectedIndex = seconds.coerceIn(0, 59),
-                            onValueChange = { newS ->
-                                onDurationChange(hours, minutes, newS)
-                            },
-                            onClick = { isKeyboardMode = true }
-                        )
-                        Text("secs", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 2.dp))
-                    }
-                }
+                )
+                Text("secs", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 4.dp))
             }
         }
     }
