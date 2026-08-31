@@ -28,4 +28,6 @@ val OneUIYellowPauseBg = Color(0x38FFD60A)
 val OneUIYellowPauseBorder = Color(0x66FFD60A)
 val OneUIBlueResumeBg = Color(0x383E82F7)
 val OneUIBlueResumeBorder = Color(0x663E82F7)
+val OneUIRedCloseBg = Color(0x2EFF453A)
+val OneUIRedCloseBorder = Color(0x55FF453A)
 

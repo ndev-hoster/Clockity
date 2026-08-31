@@ -1,7 +1,9 @@
 package com.clockity.app.ui.timer
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -61,12 +63,13 @@ fun MultiTimerCard(
                 modifier = Modifier
                     .size(28.dp)
                     .clip(CircleShape)
-                    .background(OneUICardElevated)
+                    .background(OneUIRedCloseBg)
+                    .border(BorderStroke(1.dp, OneUIRedCloseBorder), CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Cancel Timer",
-                    tint = OneUITextSecondary,
+                    tint = OneUIRed,
                     modifier = Modifier.size(16.dp)
                 )
             }
