@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- One UI Pure Dark Palette -->
+    <color name="black">#000000</color>
+    <color name="surface_dark">#121214</color>
+    <color name="card_dark">#1C1C1E</color>
+    <color name="card_elevated">#252528</color>
+    <color name="oneui_blue">#3E82F7</color>
+    <color name="oneui_orange">#FF8A00</color>
+    <color name="text_white">#FFFFFF</color>
+    <color name="text_secondary">#8E8E93</color>
+    <color name="divider_dark">#2C2C2E</color>
+</resources>

@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Clockity</string>
+    <string name="tab_alarm">Alarm</string>
+    <string name="tab_world_clock">World clock</string>
+    <string name="tab_stopwatch">Stopwatch</string>
+    <string name="tab_timer">Timer</string>
+    
+    <string name="alarm_channel_name">Alarm Ringing</string>
+    <string name="alarm_channel_desc">Notifications when your alarm rings</string>
+    <string name="upcoming_channel_name">Upcoming Alarms</string>
+    <string name="upcoming_channel_desc">Notifications for upcoming alarms before they ring</string>
+    <string name="timer_channel_name">Timers</string>
+    <string name="timer_channel_desc">Ongoing timer notifications</string>
+</resources>
