@@ -20,26 +20,17 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -56,7 +47,6 @@ import com.clockity.app.ui.timer.TimerViewModel
 import com.clockity.app.ui.worldclock.WorldClockScreen
 import com.clockity.app.ui.worldclock.WorldClockViewModel
 import com.clockity.app.utils.TimerManager
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -105,8 +95,7 @@ class MainActivity : ComponentActivity() {
                 if (isInPipMode) {
                     PipTimerView(
                         timerViewModel = timerViewModel,
-                        stopwatchViewModel = stopwatchViewModel,
-                        onTogglePlayPause = { toggleActiveTimerPlayPause() }
+                        stopwatchViewModel = stopwatchViewModel
                     )
                 } else {
                     MainAppScreen(
@@ -186,7 +175,7 @@ class MainActivity : ComponentActivity() {
             val action = RemoteAction(icon, title, title, pendingIntent)
 
             val params = PictureInPictureParams.Builder()
-                .setAspectRatio(Rational(239, 100))
+                .setAspectRatio(Rational(16, 9))
                 .setActions(listOf(action))
                 .build()
             setPictureInPictureParams(params)
@@ -216,7 +205,7 @@ class MainActivity : ComponentActivity() {
                 val action = RemoteAction(icon, title, title, pendingIntent)
 
                 val params = PictureInPictureParams.Builder()
-                    .setAspectRatio(Rational(239, 100))
+                    .setAspectRatio(Rational(16, 9))
                     .setActions(listOf(action))
                     .build()
                 enterPictureInPictureMode(params)
@@ -238,11 +227,13 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Compact Picture-in-Picture window showing solely the remaining digital time.
+ */
 @Composable
 fun PipTimerView(
     timerViewModel: TimerViewModel,
-    stopwatchViewModel: StopwatchViewModel,
-    onTogglePlayPause: () -> Unit
+    stopwatchViewModel: StopwatchViewModel
 ) {
     val timerState by timerViewModel.uiState.collectAsState()
     val swState by stopwatchViewModel.uiState.collectAsState()
@@ -250,79 +241,36 @@ fun PipTimerView(
     val runningTimer = timerState.activeTimers.firstOrNull { it.isRunning || it.isPaused }
     val pomo = timerState.pomodoroState
 
-    val timeText: String
-    val isRunning: Boolean
-    val progress: Float
-
-    if (runningTimer != null) {
-        timeText = runningTimer.formatRemaining()
-        isRunning = runningTimer.isRunning
-        progress = runningTimer.progress
+    val timeText: String = if (runningTimer != null) {
+        runningTimer.formatRemaining()
     } else if (pomo.isRunning || pomo.isPaused) {
-        timeText = pomo.formatRemainingTime()
-        isRunning = pomo.isRunning
-        progress = pomo.progress
+        pomo.formatRemainingTime()
     } else if (swState.isRunning || swState.elapsedMillis > 0) {
         val mins = swState.elapsedMillis / 60000
         val secs = (swState.elapsedMillis % 60000) / 1000
-        timeText = String.format("%02d:%02d", mins, secs)
-        isRunning = swState.isRunning
-        progress = ((swState.elapsedMillis % 60000) / 60000f)
+        String.format("%02d:%02d", mins, secs)
     } else {
-        timeText = "00:00"
-        isRunning = false
-        progress = 0f
+        "00:00"
     }
 
-    // Full bleed pill layout matching Samsung One UI dynamic island pill
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = OneUICardElevated,
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(1.dp, OneUIDivider)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 14.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            // Left: Large Digital Time Display
             Text(
                 text = timeText,
                 color = Color.White,
-                fontSize = 28.sp,
+                fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
                 letterSpacing = (-0.5).sp
             )
-
-            // Right: Circular Progress Ring & Interactive Play/Pause Button
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        onTogglePlayPause()
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxSize(),
-                    color = OneUIBlue,
-                    strokeWidth = 3.5.dp,
-                    trackColor = OneUIDivider
-                )
-                Icon(
-                    imageVector = if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isRunning) "Pause" else "Resume",
-                    tint = Color.White,
-                    modifier = Modifier.size(17.dp)
-                )
-            }
         }
     }
 }
