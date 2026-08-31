@@ -119,20 +119,23 @@ fun MultiTimerCard(
             Button(
                 onClick = { if (timer.isRunning) onPause() else onResume() },
                 shape = RoundedCornerShape(14.dp),
+                border = if (timer.isRunning) androidx.compose.foundation.BorderStroke(1.dp, OneUIYellowPauseBorder) else null,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (timer.isRunning) OneUIYellow else OneUIBlue,
-                    contentColor = OneUIBlack
+                    containerColor = if (timer.isRunning) OneUIYellowPauseBg else OneUIBlue,
+                    contentColor = Color.White
                 ),
                 modifier = Modifier.height(40.dp)
             ) {
                 Icon(
                     imageVector = if (timer.isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (timer.isRunning) "Pause" else "Resume",
+                    tint = Color.White,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = if (timer.isRunning) "Pause" else "Resume",
+                    color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )

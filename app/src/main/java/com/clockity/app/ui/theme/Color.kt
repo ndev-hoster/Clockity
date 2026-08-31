@@ -23,3 +23,7 @@ val OneUITextSecondary = Color(0xFF8E8E93)
 val OneUITextTertiary = Color(0xFF545458)
 val OneUITextDisabled = Color(0xFF3A3A3C)
 
+// Specialized Translucent Control Accents
+val OneUIYellowPauseBg = Color(0x38FFD60A)
+val OneUIYellowPauseBorder = Color(0x66FFD60A)
+

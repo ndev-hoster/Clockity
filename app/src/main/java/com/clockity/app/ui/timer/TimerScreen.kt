@@ -416,13 +416,15 @@ fun TimerScreen(
                                         .weight(1.5f)
                                         .height(48.dp),
                                     shape = RoundedCornerShape(16.dp),
+                                    border = if (pomo.isRunning) BorderStroke(1.dp, OneUIYellowPauseBorder) else null,
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = phaseColor,
-                                        contentColor = OneUIBlack
+                                        containerColor = if (pomo.isRunning) OneUIYellowPauseBg else phaseColor,
+                                        contentColor = if (pomo.isRunning) Color.White else OneUIBlack
                                     )
                                 ) {
                                     Text(
                                         text = if (pomo.isRunning) "Pause" else "Start",
+                                        color = if (pomo.isRunning) Color.White else OneUIBlack,
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold
                                     )
