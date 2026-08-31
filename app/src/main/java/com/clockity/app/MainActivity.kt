@@ -1,41 +1,19 @@
 package com.clockity.app
 
 import android.Manifest
-import android.app.PendingIntent
-import android.app.PictureInPictureParams
-import android.app.RemoteAction
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.content.res.Configuration
-import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Bundle
-import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import android.provider.Settings
 import androidx.core.content.ContextCompat
-import com.clockity.app.service.FloatingTimerService
 import com.clockity.app.ui.alarm.AlarmScreen
 import com.clockity.app.ui.alarm.AlarmViewModel
 import com.clockity.app.ui.components.BackupDialog
@@ -57,16 +35,7 @@ class MainActivity : ComponentActivity() {
     private val stopwatchViewModel: StopwatchViewModel by viewModels()
     private val timerViewModel: TimerViewModel by viewModels()
 
-    private var isInPipMode by mutableStateOf(false)
     private var initialTab by mutableStateOf(ClockTab.ALARM)
-
-    private val pipReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == ACTION_PIP_PLAY_PAUSE) {
-                toggleActiveTimerPlayPause()
-            }
-        }
-    }
 
     private val requestNotificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -84,53 +53,17 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Register PiP action broadcast receiver
-        val filter = IntentFilter(ACTION_PIP_PLAY_PAUSE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(pipReceiver, filter, RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(pipReceiver, filter)
-        }
-
         setContent {
             ClockityTheme {
-                if (isInPipMode) {
-                    PipTimerView(
-                        timerViewModel = timerViewModel,
-                        stopwatchViewModel = stopwatchViewModel
-                    )
-                } else {
-                    MainAppScreen(
-                        alarmViewModel = alarmViewModel,
-                        worldClockViewModel = worldClockViewModel,
-                        stopwatchViewModel = stopwatchViewModel,
-                        timerViewModel = timerViewModel,
-                        initialTab = initialTab
-                    )
-                }
+                MainAppScreen(
+                    alarmViewModel = alarmViewModel,
+                    worldClockViewModel = worldClockViewModel,
+                    stopwatchViewModel = stopwatchViewModel,
+                    timerViewModel = timerViewModel,
+                    initialTab = initialTab
+                )
             }
         }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        try {
-            stopService(Intent(this, FloatingTimerService::class.java))
-        } catch (_: Exception) {}
-    }
-
-    override fun onResume() {
-        super.onResume()
-        try {
-            stopService(Intent(this, FloatingTimerService::class.java))
-        } catch (_: Exception) {}
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        try {
-            unregisterReceiver(pipReceiver)
-        } catch (_: Exception) {}
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -150,130 +83,6 @@ class MainActivity : ComponentActivity() {
                 initialTab = ClockTab.TIMER
             }
         }
-    }
-
-    private fun toggleActiveTimerPlayPause() {
-        val runningTimer = TimerManager.activeTimers.value.firstOrNull { it.isRunning }
-        val pausedTimer = TimerManager.activeTimers.value.firstOrNull { it.isPaused }
-        val pomo = TimerManager.pomodoroState.value
-        val isSwRunning = stopwatchViewModel.uiState.value.isRunning
-
-        if (runningTimer != null) {
-            TimerManager.pauseTimer(runningTimer.id)
-        } else if (pausedTimer != null) {
-            TimerManager.resumeTimer(pausedTimer.id)
-        } else if (pomo.isRunning) {
-            TimerManager.pausePomodoro()
-        } else if (pomo.isPaused) {
-            TimerManager.startPomodoro()
-        } else if (isSwRunning) {
-            stopwatchViewModel.pause()
-        } else if (stopwatchViewModel.uiState.value.elapsedMillis > 0) {
-            stopwatchViewModel.start()
-        }
-        updatePipParams()
-    }
-
-    private fun updatePipParams() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val isTimerRunning = TimerManager.activeTimers.value.any { it.isRunning }
-            val isPomoRunning = TimerManager.pomodoroState.value.isRunning
-            val isSwRunning = stopwatchViewModel.uiState.value.isRunning
-            val isRunning = isTimerRunning || isPomoRunning || isSwRunning
-
-            val intent = Intent(ACTION_PIP_PLAY_PAUSE).apply {
-                setPackage(packageName)
-            }
-            val pendingIntent = PendingIntent.getBroadcast(
-                this,
-                0,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            val icon = Icon.createWithResource(
-                this,
-                if (isRunning) R.drawable.ic_pip_pause else R.drawable.ic_pip_play
-            )
-            val title = if (isRunning) "Pause" else "Resume"
-            val action = RemoteAction(icon, title, title, pendingIntent)
-
-            val params = PictureInPictureParams.Builder()
-                .setAspectRatio(Rational(239, 100))
-                .setActions(listOf(action))
-                .build()
-            setPictureInPictureParams(params)
-        }
-    }
-
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        // PiP disabled for now
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
-        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
-        isInPipMode = isInPictureInPictureMode
-        if (isInPictureInPictureMode) {
-            updatePipParams()
-        } else {
-            // User expanded PiP window -> Ensure directly navigating to Timer tab
-            val hasActiveTimers = TimerManager.activeTimers.value.any { it.isRunning || it.isPaused } ||
-                    TimerManager.pomodoroState.value.isRunning ||
-                    TimerManager.pomodoroState.value.isPaused
-            if (hasActiveTimers) {
-                initialTab = ClockTab.TIMER
-            }
-        }
-    }
-
-    companion object {
-        const val ACTION_PIP_PLAY_PAUSE = "com.clockity.app.ACTION_PIP_PLAY_PAUSE"
-    }
-}
-
-/**
- * Ultra-compact Picture-in-Picture window containing only the tight digital numbers
- * with zero wasted margin or padding.
- */
-@Composable
-fun PipTimerView(
-    timerViewModel: TimerViewModel,
-    stopwatchViewModel: StopwatchViewModel
-) {
-    val timerState by timerViewModel.uiState.collectAsState()
-    val swState by stopwatchViewModel.uiState.collectAsState()
-
-    val runningTimer = timerState.activeTimers.firstOrNull { it.isRunning || it.isPaused }
-    val pomo = timerState.pomodoroState
-
-    val timeText: String = if (runningTimer != null) {
-        runningTimer.formatRemaining()
-    } else if (pomo.isRunning || pomo.isPaused) {
-        pomo.formatRemainingTime()
-    } else if (swState.isRunning || swState.elapsedMillis > 0) {
-        val mins = swState.elapsedMillis / 60000
-        val secs = (swState.elapsedMillis % 60000) / 1000
-        String.format("%02d:%02d", mins, secs)
-    } else {
-        "00:00"
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = timeText,
-            color = Color.White,
-            fontSize = 46.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            letterSpacing = (-1).sp,
-            modifier = Modifier.wrapContentSize()
-        )
     }
 }
 
