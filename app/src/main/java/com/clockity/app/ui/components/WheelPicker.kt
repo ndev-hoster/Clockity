@@ -14,6 +14,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -21,15 +22,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.UnfoldMore
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -39,10 +43,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.clockity.app.ui.theme.*
+import kotlinx.coroutines.delay
 
 /**
  * Reusable vertical scrollable drum number wheel with haptic tick feedback,
- * single-item compact view, and infinite wrap-around looping.
+ * sequence numbers on top & bottom, and infinite wrap-around looping.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -51,8 +56,9 @@ fun ScrollableNumberWheel(
     selectedIndex: Int,
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    itemHeight: Dp = 50.dp,
-    visibleItemsCount: Int = 1,
+    unitLabel: String? = null,
+    itemHeight: Dp = 38.dp,
+    visibleItemsCount: Int = 5,
     isLooping: Boolean = true,
     onClick: (() -> Unit)? = null
 ) {
@@ -140,41 +146,73 @@ fun ScrollableNumberWheel(
     Box(
         modifier = modifier
             .height(itemHeight * visibleItemsCount)
-            .clip(RoundedCornerShape(14.dp))
-            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                onClick?.invoke()
+            },
         contentAlignment = Alignment.Center
     ) {
-        // Selected Highlight Box
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .height(itemHeight)
-                .clip(RoundedCornerShape(12.dp))
-                .background(OneUIBlue.copy(alpha = 0.12f))
-        )
-
         LazyColumn(
             state = listState,
             flingBehavior = snapFlingBehavior,
+            contentPadding = PaddingValues(vertical = itemHeight * (visibleItemsCount / 2)),
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             items(totalVirtualItems) { virtualIdx ->
                 val actualIdx = virtualIdx % count
-                val isSelected = virtualIdx == currentVirtualIndex
+                val distance = kotlin.math.abs(virtualIdx - currentVirtualIndex)
+                val isSelected = distance == 0
+
                 Box(
                     modifier = Modifier
                         .height(itemHeight)
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            onClick?.invoke()
+                        },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = items[actualIdx],
-                        fontSize = if (isSelected) 32.sp else 22.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) OneUITextPrimary else OneUITextTertiary,
-                        textAlign = TextAlign.Center
-                    )
+                    if (isSelected) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = items[actualIdx],
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = OneUITextPrimary
+                            )
+                            if (!unitLabel.isNullOrEmpty()) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = unitLabel,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = OneUITextPrimary
+                                )
+                            }
+                        }
+                    } else {
+                        val (fontSize, textColor) = when (distance) {
+                            1 -> 17.sp to OneUITextSecondary
+                            2 -> 13.sp to OneUITextTertiary
+                            else -> 11.sp to Color.Transparent
+                        }
+                        Text(
+                            text = items[actualIdx],
+                            fontSize = fontSize,
+                            fontWeight = FontWeight.Normal,
+                            color = textColor,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }
@@ -194,7 +232,6 @@ fun AlarmWheelTimePicker(
 ) {
     var isKeyboardMode by remember { mutableStateOf(false) }
 
-    // 12-hour or 24-hour components
     val isPm = hour >= 12
     val hour12 = when {
         hour == 0 -> 12
@@ -215,9 +252,9 @@ fun AlarmWheelTimePicker(
             hIdx.coerceIn(0, 23)
         } else {
             val hVal = hIdx + 1
-            if (amPmIdx == 1) { // PM
+            if (amPmIdx == 1) {
                 if (hVal == 12) 12 else hVal + 12
-            } else { // AM
+            } else {
                 if (hVal == 12) 0 else hVal
             }
         }
@@ -229,113 +266,85 @@ fun AlarmWheelTimePicker(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(OneUICardElevated)
+            .background(OneUICardDark)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Header with Mode Switch
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = if (isKeyboardMode) "Type Time" else "Scroll Time (Tap to Type)",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = OneUITextSecondary
-            )
-
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(OneUICardDark)
-                    .clickable { isKeyboardMode = !isKeyboardMode }
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = if (isKeyboardMode) Icons.Default.UnfoldMore else Icons.Default.Keyboard,
-                    contentDescription = "Toggle Mode",
-                    tint = OneUIBlue,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = if (isKeyboardMode) "Wheel" else "Keypad",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = OneUIBlue
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
         AnimatedContent(
             targetState = isKeyboardMode,
             transitionSpec = { fadeIn() togetherWith fadeOut() },
             label = "picker_mode"
         ) { keyboardMode ->
             if (keyboardMode) {
-                // Direct Numeric Typing Mode
                 DirectTimeInputRow(
                     hour = hour,
                     minute = minute,
                     is24Hour = is24Hour,
-                    onTimeChange = onTimeChange
+                    onTimeChange = onTimeChange,
+                    onDone = { isKeyboardMode = false }
                 )
             } else {
-                // Scrollable Drum Wheels with Haptic Feedback
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+                        .height(190.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Hours Wheel
-                    ScrollableNumberWheel(
-                        items = hoursList,
-                        selectedIndex = selectedHourIndex,
-                        onValueChange = { newH ->
-                            updateTimeFromWheel(newH, selectedMinuteIndex, selectedAmPmIndex)
-                        },
-                        onClick = { isKeyboardMode = true },
-                        modifier = Modifier.weight(1f)
+                    // Center Highlight Pill
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.95f)
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(OneUICardElevated)
                     )
 
-                    Text(
-                        text = ":",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = OneUITextSecondary,
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    )
-
-                    // Minutes Wheel
-                    ScrollableNumberWheel(
-                        items = minutesList,
-                        selectedIndex = selectedMinuteIndex,
-                        onValueChange = { newM ->
-                            updateTimeFromWheel(selectedHourIndex, newM, selectedAmPmIndex)
-                        },
-                        onClick = { isKeyboardMode = true },
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    if (!is24Hour) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        // AM/PM Wheel
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         ScrollableNumberWheel(
-                            items = amPmList,
-                            selectedIndex = selectedAmPmIndex,
-                            onValueChange = { newAmPm ->
-                                updateTimeFromWheel(selectedHourIndex, selectedMinuteIndex, newAmPm)
+                            items = hoursList,
+                            selectedIndex = selectedHourIndex,
+                            onValueChange = { newH ->
+                                updateTimeFromWheel(newH, selectedMinuteIndex, selectedAmPmIndex)
                             },
                             onClick = { isKeyboardMode = true },
-                            modifier = Modifier.weight(0.9f)
+                            modifier = Modifier.weight(1f)
                         )
+
+                        Text(
+                            text = ":",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = OneUITextSecondary,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+
+                        ScrollableNumberWheel(
+                            items = minutesList,
+                            selectedIndex = selectedMinuteIndex,
+                            onValueChange = { newM ->
+                                updateTimeFromWheel(selectedHourIndex, newM, selectedAmPmIndex)
+                            },
+                            onClick = { isKeyboardMode = true },
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        if (!is24Hour) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            ScrollableNumberWheel(
+                                items = amPmList,
+                                selectedIndex = selectedAmPmIndex,
+                                onValueChange = { newAmPm ->
+                                    updateTimeFromWheel(selectedHourIndex, selectedMinuteIndex, newAmPm)
+                                },
+                                onClick = { isKeyboardMode = true },
+                                isLooping = false,
+                                modifier = Modifier.weight(0.9f)
+                            )
+                        }
                     }
                 }
             }
@@ -351,7 +360,8 @@ fun DirectTimeInputRow(
     hour: Int,
     minute: Int,
     is24Hour: Boolean,
-    onTimeChange: (hour: Int, minute: Int) -> Unit
+    onTimeChange: (hour: Int, minute: Int) -> Unit,
+    onDone: () -> Unit
 ) {
     val isPm = hour >= 12
     val hour12 = when {
@@ -397,7 +407,6 @@ fun DirectTimeInputRow(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Hours Input
         OutlinedTextField(
             value = hourText,
             onValueChange = {
@@ -411,29 +420,28 @@ fun DirectTimeInputRow(
             ),
             singleLine = true,
             textStyle = LocalTextStyle.current.copy(
-                fontSize = 32.sp,
+                fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = OneUITextPrimary,
                 textAlign = TextAlign.Center
             ),
-            modifier = Modifier.width(76.dp),
+            modifier = Modifier.width(72.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = OneUIBlue,
                 unfocusedBorderColor = OneUIDivider,
-                focusedContainerColor = OneUICardDark,
-                unfocusedContainerColor = OneUICardDark
+                focusedContainerColor = OneUICardElevated,
+                unfocusedContainerColor = OneUICardElevated
             )
         )
 
         Text(
             text = ":",
-            fontSize = 32.sp,
+            fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = OneUITextSecondary,
             modifier = Modifier.padding(horizontal = 8.dp)
         )
 
-        // Minutes Input
         OutlinedTextField(
             value = minuteText,
             onValueChange = {
@@ -445,20 +453,23 @@ fun DirectTimeInputRow(
                 keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Done
             ),
-            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+            keyboardActions = KeyboardActions(onDone = {
+                focusManager.clearFocus()
+                onDone()
+            }),
             singleLine = true,
             textStyle = LocalTextStyle.current.copy(
-                fontSize = 32.sp,
+                fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = OneUITextPrimary,
                 textAlign = TextAlign.Center
             ),
-            modifier = Modifier.width(76.dp),
+            modifier = Modifier.width(72.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = OneUIBlue,
                 unfocusedBorderColor = OneUIDivider,
-                focusedContainerColor = OneUICardDark,
-                unfocusedContainerColor = OneUICardDark
+                focusedContainerColor = OneUICardElevated,
+                unfocusedContainerColor = OneUICardElevated
             )
         )
 
@@ -470,7 +481,7 @@ fun DirectTimeInputRow(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) OneUIBlue else OneUICardDark)
+                            .background(if (isSelected) OneUIBlue else OneUICardElevated)
                             .clickable {
                                 amPmState = period
                                 applyDirectTime()
@@ -488,11 +499,23 @@ fun DirectTimeInputRow(
                 }
             }
         }
+
+        Spacer(modifier = Modifier.width(10.dp))
+        IconButton(
+            onClick = onDone,
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(OneUIBlue)
+        ) {
+            Icon(Icons.Default.Check, contentDescription = "Done", tint = OneUIBlack, modifier = Modifier.size(20.dp))
+        }
     }
 }
 
 /**
- * Timer Wheel Duration Picker
+ * Timer Wheel Duration Picker with 5-row sequence numbers, inline unit labels,
+ * and tap-to-type numeric keyboard activation.
  */
 @Composable
 fun TimerWheelDurationPicker(
@@ -502,6 +525,9 @@ fun TimerWheelDurationPicker(
     onDurationChange: (h: Int, m: Int, s: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isKeyboardMode by remember { mutableStateOf(false) }
+    var focusedField by remember { mutableIntStateOf(1) } // 0 = hours, 1 = mins, 2 = secs
+
     val hoursList = (0..23).map { String.format("%02d", it) }
     val minutesList = (0..59).map { String.format("%02d", it) }
     val secondsList = (0..59).map { String.format("%02d", it) }
@@ -509,66 +535,250 @@ fun TimerWheelDurationPicker(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(OneUICardElevated)
-            .padding(vertical = 12.dp, horizontal = 10.dp),
+            .clip(RoundedCornerShape(22.dp))
+            .background(OneUICardDark)
+            .padding(vertical = 14.dp, horizontal = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Hours
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                ScrollableNumberWheel(
-                    items = hoursList,
-                    selectedIndex = hours.coerceIn(0, 23),
-                    onValueChange = { newH ->
-                        onDurationChange(newH, minutes, seconds)
+        AnimatedContent(
+            targetState = isKeyboardMode,
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "timer_picker_mode"
+        ) { keyboardMode ->
+            if (keyboardMode) {
+                // Direct Numeric Keypad Typing View
+                val hoursFocus = remember { FocusRequester() }
+                val minutesFocus = remember { FocusRequester() }
+                val secondsFocus = remember { FocusRequester() }
+                val keyboardController = LocalSoftwareKeyboardController.current
+
+                var hourStr by remember(hours) { mutableStateOf(if (hours == 0) "00" else String.format("%02d", hours)) }
+                var minStr by remember(minutes) { mutableStateOf(if (minutes == 0) "00" else String.format("%02d", minutes)) }
+                var secStr by remember(seconds) { mutableStateOf(if (seconds == 0) "00" else String.format("%02d", seconds)) }
+
+                LaunchedEffect(Unit) {
+                    delay(50)
+                    when (focusedField) {
+                        0 -> hoursFocus.requestFocus()
+                        1 -> minutesFocus.requestFocus()
+                        2 -> secondsFocus.requestFocus()
                     }
-                )
-                Text("hours", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 4.dp))
-            }
+                    keyboardController?.show()
+                }
 
-            Text(
-                text = ":",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = OneUITextSecondary,
-                modifier = Modifier.padding(horizontal = 2.dp).offset(y = (-8).dp)
-            )
+                fun applyValues() {
+                    val h = hourStr.filter { it.isDigit() }.toIntOrNull() ?: 0
+                    val m = minStr.filter { it.isDigit() }.toIntOrNull() ?: 0
+                    val s = secStr.filter { it.isDigit() }.toIntOrNull() ?: 0
+                    onDurationChange(h.coerceIn(0, 23), m.coerceIn(0, 59), s.coerceIn(0, 59))
+                }
 
-            // Minutes
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                ScrollableNumberWheel(
-                    items = minutesList,
-                    selectedIndex = minutes.coerceIn(0, 59),
-                    onValueChange = { newM ->
-                        onDurationChange(hours, newM, seconds)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Hours Field
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        OutlinedTextField(
+                            value = hourStr,
+                            onValueChange = {
+                                hourStr = it.filter { ch -> ch.isDigit() }.take(2)
+                                applyValues()
+                            },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Next
+                            ),
+                            singleLine = true,
+                            textStyle = LocalTextStyle.current.copy(
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = OneUITextPrimary,
+                                textAlign = TextAlign.Center
+                            ),
+                            modifier = Modifier
+                                .width(68.dp)
+                                .focusRequester(hoursFocus),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = OneUIBlue,
+                                unfocusedBorderColor = OneUIDivider,
+                                focusedContainerColor = OneUICardElevated,
+                                unfocusedContainerColor = OneUICardElevated
+                            )
+                        )
+                        Text("hours", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 2.dp))
                     }
-                )
-                Text("mins", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 4.dp))
-            }
 
-            Text(
-                text = ":",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = OneUITextSecondary,
-                modifier = Modifier.padding(horizontal = 2.dp).offset(y = (-8).dp)
-            )
+                    Text(
+                        text = ":",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = OneUITextSecondary,
+                        modifier = Modifier.padding(horizontal = 6.dp).offset(y = (-8).dp)
+                    )
 
-            // Seconds
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                ScrollableNumberWheel(
-                    items = secondsList,
-                    selectedIndex = seconds.coerceIn(0, 59),
-                    onValueChange = { newS ->
-                        onDurationChange(hours, minutes, newS)
+                    // Minutes Field
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        OutlinedTextField(
+                            value = minStr,
+                            onValueChange = {
+                                minStr = it.filter { ch -> ch.isDigit() }.take(2)
+                                applyValues()
+                            },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Next
+                            ),
+                            singleLine = true,
+                            textStyle = LocalTextStyle.current.copy(
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = OneUITextPrimary,
+                                textAlign = TextAlign.Center
+                            ),
+                            modifier = Modifier
+                                .width(68.dp)
+                                .focusRequester(minutesFocus),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = OneUIBlue,
+                                unfocusedBorderColor = OneUIDivider,
+                                focusedContainerColor = OneUICardElevated,
+                                unfocusedContainerColor = OneUICardElevated
+                            )
+                        )
+                        Text("min", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 2.dp))
                     }
-                )
-                Text("secs", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 4.dp))
+
+                    Text(
+                        text = ":",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = OneUITextSecondary,
+                        modifier = Modifier.padding(horizontal = 6.dp).offset(y = (-8).dp)
+                    )
+
+                    // Seconds Field
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        OutlinedTextField(
+                            value = secStr,
+                            onValueChange = {
+                                secStr = it.filter { ch -> ch.isDigit() }.take(2)
+                                applyValues()
+                            },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(onDone = {
+                                applyValues()
+                                isKeyboardMode = false
+                            }),
+                            singleLine = true,
+                            textStyle = LocalTextStyle.current.copy(
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = OneUITextPrimary,
+                                textAlign = TextAlign.Center
+                            ),
+                            modifier = Modifier
+                                .width(68.dp)
+                                .focusRequester(secondsFocus),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = OneUIBlue,
+                                unfocusedBorderColor = OneUIDivider,
+                                focusedContainerColor = OneUICardElevated,
+                                unfocusedContainerColor = OneUICardElevated
+                            )
+                        )
+                        Text("sec", fontSize = 11.sp, color = OneUITextSecondary, modifier = Modifier.padding(top = 2.dp))
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    IconButton(
+                        onClick = {
+                            applyValues()
+                            isKeyboardMode = false
+                        },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(OneUIBlue)
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = "Done", tint = OneUIBlack, modifier = Modifier.size(20.dp))
+                    }
+                }
+            } else {
+                // 5-Row Sequence Wheel Drum View
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(190.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Center Highlight Pill
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.96f)
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(OneUICardElevated)
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Hours Wheel
+                        ScrollableNumberWheel(
+                            items = hoursList,
+                            selectedIndex = hours.coerceIn(0, 23),
+                            unitLabel = "hours",
+                            onValueChange = { newH ->
+                                onDurationChange(newH, minutes, seconds)
+                            },
+                            onClick = {
+                                focusedField = 0
+                                isKeyboardMode = true
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        // Minutes Wheel
+                        ScrollableNumberWheel(
+                            items = minutesList,
+                            selectedIndex = minutes.coerceIn(0, 59),
+                            unitLabel = "min",
+                            onValueChange = { newM ->
+                                onDurationChange(hours, newM, seconds)
+                            },
+                            onClick = {
+                                focusedField = 1
+                                isKeyboardMode = true
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        // Seconds Wheel
+                        ScrollableNumberWheel(
+                            items = secondsList,
+                            selectedIndex = seconds.coerceIn(0, 59),
+                            unitLabel = "sec",
+                            onValueChange = { newS ->
+                                onDurationChange(hours, minutes, newS)
+                            },
+                            onClick = {
+                                focusedField = 2
+                                isKeyboardMode = true
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
             }
         }
     }
