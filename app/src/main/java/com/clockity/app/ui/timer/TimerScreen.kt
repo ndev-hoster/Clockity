@@ -181,20 +181,22 @@ fun TimerScreen(
                     }
 
                     item {
-                        val timerCount = uiState.activeTimers.size
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(if (timerCount <= 2) 10.dp else 6.dp)
-                        ) {
-                            uiState.activeTimers.forEach { timer ->
-                                MultiTimerCard(
-                                    timer = timer,
-                                    onPause = { viewModel.pauseTimer(timer.id) },
-                                    onResume = { viewModel.resumeTimer(timer.id) },
-                                    onCancel = { viewModel.cancelTimer(timer.id) },
-                                    timerCount = timerCount,
-                                    modifier = Modifier.weight(1f)
-                                )
+                        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                            val itemWidth = (maxWidth - 32.dp) / 5f
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                uiState.activeTimers.forEach { timer ->
+                                    MultiTimerCard(
+                                        timer = timer,
+                                        onPause = { viewModel.pauseTimer(timer.id) },
+                                        onResume = { viewModel.resumeTimer(timer.id) },
+                                        onCancel = { viewModel.cancelTimer(timer.id) },
+                                        modifier = Modifier.width(itemWidth)
+                                    )
+                                }
                             }
                         }
                     }

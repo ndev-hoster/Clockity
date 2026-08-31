@@ -61,32 +61,32 @@ fun PresetChips(
             items(presets, key = { it.id }) { preset ->
                 Row(
                     modifier = Modifier
-                        .height(64.dp)
+                        .height(68.dp)
                         .clip(RoundedCornerShape(18.dp))
                         .background(OneUICardDark)
                         .combinedClickable(
                             onClick = { onSelectPreset(preset) },
                             onLongClick = { onEditPreset(preset) }
                         )
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(vertical = 2.dp)
+                        verticalArrangement = Arrangement.Center
                     ) {
                         Text(
                             text = preset.title,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = OneUITextPrimary
+                            color = OneUITextPrimary,
+                            maxLines = 1
                         )
-                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = preset.formatDurationSummary(),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
-                            color = OneUIBlueLight
+                            color = OneUIBlueLight,
+                            maxLines = 1
                         )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
@@ -108,15 +108,15 @@ fun PresetChips(
                 }
             }
 
-            // + Add preset button (increased to match full preset card height)
+            // + Add preset button
             item {
                 Row(
                     modifier = Modifier
-                        .height(64.dp)
+                        .height(68.dp)
                         .clip(RoundedCornerShape(18.dp))
                         .background(OneUICardElevated)
                         .clickable { onAddPreset() }
-                        .padding(horizontal = 20.dp, vertical = 10.dp),
+                        .padding(horizontal = 20.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
