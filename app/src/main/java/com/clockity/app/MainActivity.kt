@@ -175,7 +175,7 @@ class MainActivity : ComponentActivity() {
             val action = RemoteAction(icon, title, title, pendingIntent)
 
             val params = PictureInPictureParams.Builder()
-                .setAspectRatio(Rational(16, 9))
+                .setAspectRatio(Rational(239, 100))
                 .setActions(listOf(action))
                 .build()
             setPictureInPictureParams(params)
@@ -205,7 +205,7 @@ class MainActivity : ComponentActivity() {
                 val action = RemoteAction(icon, title, title, pendingIntent)
 
                 val params = PictureInPictureParams.Builder()
-                    .setAspectRatio(Rational(16, 9))
+                    .setAspectRatio(Rational(239, 100))
                     .setActions(listOf(action))
                     .build()
                 enterPictureInPictureMode(params)
@@ -228,7 +228,8 @@ class MainActivity : ComponentActivity() {
 }
 
 /**
- * Compact Picture-in-Picture window showing solely the remaining digital time.
+ * Ultra-compact Picture-in-Picture window containing only the tight digital numbers
+ * with zero wasted margin or padding.
  */
 @Composable
 fun PipTimerView(
@@ -253,25 +254,21 @@ fun PipTimerView(
         "00:00"
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = OneUICardElevated,
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(1.dp, OneUIDivider)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = timeText,
-                color = Color.White,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                letterSpacing = (-0.5).sp
-            )
-        }
+        Text(
+            text = timeText,
+            color = Color.White,
+            fontSize = 46.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            letterSpacing = (-1).sp,
+            modifier = Modifier.wrapContentSize()
+        )
     }
 }
 
