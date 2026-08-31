@@ -230,9 +230,9 @@ fun TimerScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(24.dp))
+                            .clip(RoundedCornerShape(22.dp))
                             .background(OneUICardDark)
-                            .padding(20.dp),
+                            .padding(14.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         TimerWheelDurationPicker(
@@ -250,7 +250,7 @@ fun TimerScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 12.dp),
+                                .padding(vertical = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             listOf(1 to "+1m", 5 to "+5m", 15 to "+15m", 30 to "+30m").forEach { (m, label) ->

@@ -768,19 +768,19 @@ fun TimerWheelDurationPicker(
                     }
                 }
             } else {
-                // 5-Row Sequence Wheel Drum View with STATIC Unit Suffixes
+                // Compact 3-Row Sequence Wheel Drum View with STATIC Unit Suffixes
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(190.dp),
+                        .height(114.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     // Center Highlight Pill
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(0.96f)
-                            .height(44.dp)
-                            .clip(RoundedCornerShape(14.dp))
+                            .height(38.dp)
+                            .clip(RoundedCornerShape(12.dp))
                             .background(OneUICardElevated)
                     )
 
@@ -813,6 +813,8 @@ fun TimerWheelDurationPicker(
                                     focusedField = 0
                                     isKeyboardMode = true
                                 },
+                                itemHeight = 36.dp,
+                                visibleItemsCount = 3,
                                 modifier = Modifier.width(36.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
@@ -848,6 +850,8 @@ fun TimerWheelDurationPicker(
                                     focusedField = 1
                                     isKeyboardMode = true
                                 },
+                                itemHeight = 36.dp,
+                                visibleItemsCount = 3,
                                 modifier = Modifier.width(36.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
@@ -883,6 +887,8 @@ fun TimerWheelDurationPicker(
                                     focusedField = 2
                                     isKeyboardMode = true
                                 },
+                                itemHeight = 36.dp,
+                                visibleItemsCount = 3,
                                 modifier = Modifier.width(36.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
