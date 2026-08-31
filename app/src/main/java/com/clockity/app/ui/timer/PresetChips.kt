@@ -55,21 +55,23 @@ fun PresetChips(
 
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             items(presets, key = { it.id }) { preset ->
                 Row(
                     modifier = Modifier
+                        .height(52.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(OneUICardDark)
                         .combinedClickable(
                             onClick = { onSelectPreset(preset) },
                             onLongClick = { onEditPreset(preset) }
                         )
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(verticalArrangement = Arrangement.Center) {
                         Text(
                             text = preset.title,
                             fontSize = 13.sp,
@@ -107,11 +109,13 @@ fun PresetChips(
             item {
                 Row(
                     modifier = Modifier
+                        .height(52.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(OneUICardElevated)
                         .clickable { onAddPreset() }
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
@@ -119,16 +123,15 @@ fun PresetChips(
                         tint = OneUIBlue,
                         modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "New",
+                        color = OneUIBlue,
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = OneUIBlue
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
         }
     }
 }
-

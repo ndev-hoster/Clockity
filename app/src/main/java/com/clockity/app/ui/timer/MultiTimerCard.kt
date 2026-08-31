@@ -178,9 +178,11 @@ fun MultiTimerCard(
 
             Spacer(modifier = Modifier.height(if (compactMode == 0) 10.dp else 6.dp))
 
-            // Action Buttons Row (Cancel on Left, Pause/Resume on Right)
+            // Action Buttons Row (Anchored to the circular ring width)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .width(ringSize + 24.dp)
+                    .padding(horizontal = 2.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
