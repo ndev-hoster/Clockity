@@ -181,12 +181,20 @@ fun TimerScreen(
                     }
 
                     item {
-                        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                            val itemWidth = (maxWidth - 32.dp) / 5f
+                        val timerCount = uiState.activeTimers.size
+                        if (timerCount == 1) {
+                            val timer = uiState.activeTimers.first()
+                            MultiTimerCard(
+                                timer = timer,
+                                onPause = { viewModel.pauseTimer(timer.id) },
+                                onResume = { viewModel.resumeTimer(timer.id) },
+                                onCancel = { viewModel.cancelTimer(timer.id) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else if (timerCount == 2) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 uiState.activeTimers.forEach { timer ->
                                     MultiTimerCard(
@@ -194,7 +202,22 @@ fun TimerScreen(
                                         onPause = { viewModel.pauseTimer(timer.id) },
                                         onResume = { viewModel.resumeTimer(timer.id) },
                                         onCancel = { viewModel.cancelTimer(timer.id) },
-                                        modifier = Modifier.width(itemWidth)
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        } else {
+                            androidx.compose.foundation.lazy.LazyRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(uiState.activeTimers, key = { it.id }) { timer ->
+                                    MultiTimerCard(
+                                        timer = timer,
+                                        onPause = { viewModel.pauseTimer(timer.id) },
+                                        onResume = { viewModel.resumeTimer(timer.id) },
+                                        onCancel = { viewModel.cancelTimer(timer.id) },
+                                        modifier = Modifier.width(185.dp)
                                     )
                                 }
                             }

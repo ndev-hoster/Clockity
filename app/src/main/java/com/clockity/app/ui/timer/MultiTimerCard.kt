@@ -32,9 +32,9 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Running Timer Card with relative 1/5th horizontal width.
- * Fully contained layout where pause and cancel buttons are positioned
- * relatively inside the card with no clipping.
+ * Running Timer Card matching One UI circular progress reference design.
+ * Fully responsive for both narrow phone screens and wide tablet screens.
+ * Progress is Blue when running, Gray when paused.
  */
 @Composable
 fun MultiTimerCard(
@@ -57,18 +57,17 @@ fun MultiTimerCard(
 
     BoxWithConstraints(
         modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(24.dp))
             .background(OneUICardDark)
-            .border(BorderStroke(1.dp, OneUIDivider), RoundedCornerShape(20.dp))
-            .padding(12.dp)
+            .border(BorderStroke(1.dp, OneUIDivider), RoundedCornerShape(24.dp))
+            .padding(14.dp)
     ) {
-        val cardWidth = maxWidth
-        val isWide = cardWidth >= 110.dp
-        val ringSize = (cardWidth - 16.dp).coerceIn(48.dp, 120.dp)
-        val strokeWidth = if (isWide) 4.5.dp else 3.dp
-        val timeFontSize = if (isWide) 16.sp else if (cardWidth >= 75.dp) 12.sp else 10.sp
-        val buttonSize = if (isWide) 32.dp else 22.dp
-        val iconSize = if (isWide) 16.dp else 11.dp
+        val isCompact = maxWidth < 260.dp
+        val ringSize = if (isCompact) 130.dp else 170.dp
+        val strokeWidth = if (isCompact) 5.dp else 6.dp
+        val timeFontSize = if (isCompact) 24.sp else 34.sp
+        val buttonSize = if (isCompact) 34.dp else 40.dp
+        val iconSize = if (isCompact) 16.dp else 20.dp
 
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -78,7 +77,7 @@ fun MultiTimerCard(
             Box(
                 modifier = Modifier
                     .size(ringSize)
-                    .padding(vertical = 2.dp),
+                    .padding(vertical = 4.dp),
                 contentAlignment = Alignment.Center
             ) {
                 // Background Track & Progress Arc (Blue when running, Gray when paused)
@@ -96,61 +95,60 @@ fun MultiTimerCard(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    if (isWide) {
-                        // Bell icon & Target End Time
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Notifications,
-                                contentDescription = null,
-                                tint = OneUITextSecondary,
-                                modifier = Modifier.size(10.dp)
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text(
-                                text = targetEndTimeStr,
-                                color = OneUITextSecondary,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(1.dp))
+                    // Bell icon & Target End Time
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = null,
+                            tint = OneUITextSecondary,
+                            modifier = Modifier.size(if (isCompact) 11.dp else 13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = targetEndTimeStr,
+                            color = OneUITextSecondary,
+                            fontSize = if (isCompact) 11.sp else 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
+
+                    Spacer(modifier = Modifier.height(2.dp))
 
                     // Remaining Countdown Time
                     Text(
                         text = timer.formatRemaining(),
                         color = OneUITextPrimary,
                         fontSize = timeFontSize,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.Normal,
                         letterSpacing = (-0.5).sp
                     )
 
+                    Spacer(modifier = Modifier.height(2.dp))
+
                     // Title
-                    if (isWide) {
-                        Text(
-                            text = timer.title,
-                            color = OneUITextSecondary,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Normal,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    Text(
+                        text = timer.title,
+                        color = OneUITextSecondary,
+                        fontSize = if (isCompact) 12.sp else 13.sp,
+                        fontWeight = FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Action Buttons Row positioned inside card padding (no clipping)
+            // Action Buttons Row (Cancel on Left, Pause/Resume on Right)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Cancel Button (Left)
+                // Cancel Button (Bottom-Left)
                 IconButton(
                     onClick = onCancel,
                     modifier = Modifier
@@ -167,7 +165,7 @@ fun MultiTimerCard(
                     )
                 }
 
-                // Pause / Resume Button (Right)
+                // Pause / Resume Button (Bottom-Right)
                 IconButton(
                     onClick = { if (timer.isRunning) onPause() else onResume() },
                     modifier = Modifier
