@@ -33,7 +33,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.provider.Settings
 import androidx.core.content.ContextCompat
+import com.clockity.app.service.FloatingTimerService
 import com.clockity.app.ui.alarm.AlarmScreen
 import com.clockity.app.ui.alarm.AlarmViewModel
 import com.clockity.app.ui.components.BackupDialog
@@ -110,6 +112,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        try {
+            stopService(Intent(this, FloatingTimerService::class.java))
+        } catch (_: Exception) {}
+    }
+
+    override fun onResume() {
+        super.onResume()
+        try {
+            stopService(Intent(this, FloatingTimerService::class.java))
+        } catch (_: Exception) {}
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         try {
@@ -126,6 +142,13 @@ class MainActivity : ComponentActivity() {
         val tabIndex = intent?.getIntExtra("open_tab", -1) ?: -1
         if (tabIndex in 0..3) {
             initialTab = ClockTab.values()[tabIndex]
+        } else {
+            val hasActiveTimers = TimerManager.activeTimers.value.any { it.isRunning || it.isPaused } ||
+                    TimerManager.pomodoroState.value.isRunning ||
+                    TimerManager.pomodoroState.value.isPaused
+            if (hasActiveTimers) {
+                initialTab = ClockTab.TIMER
+            }
         }
     }
 
@@ -184,12 +207,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        val runningTimers = TimerManager.activeTimers.value.any { it.isRunning }
-        val isPomoRunning = TimerManager.pomodoroState.value.isRunning
+        val runningTimers = TimerManager.activeTimers.value.any { it.isRunning || it.isPaused }
+        val isPomoRunning = TimerManager.pomodoroState.value.isRunning || TimerManager.pomodoroState.value.isPaused
         val isStopwatchRunning = stopwatchViewModel.uiState.value.isRunning
 
         if (runningTimers || isPomoRunning || isStopwatchRunning) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (Settings.canDrawOverlays(this)) {
+                // Launch the true 1/3rd sized mini floating pill overlay!
+                val serviceIntent = Intent(this, FloatingTimerService::class.java)
+                startService(serviceIntent)
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 updatePipParams()
                 val isRunning = runningTimers || isPomoRunning || isStopwatchRunning
                 val intent = Intent(ACTION_PIP_PLAY_PAUSE).apply { setPackage(packageName) }
@@ -219,6 +246,14 @@ class MainActivity : ComponentActivity() {
         isInPipMode = isInPictureInPictureMode
         if (isInPictureInPictureMode) {
             updatePipParams()
+        } else {
+            // User expanded PiP window -> Ensure directly navigating to Timer tab
+            val hasActiveTimers = TimerManager.activeTimers.value.any { it.isRunning || it.isPaused } ||
+                    TimerManager.pomodoroState.value.isRunning ||
+                    TimerManager.pomodoroState.value.isPaused
+            if (hasActiveTimers) {
+                initialTab = ClockTab.TIMER
+            }
         }
     }
 
