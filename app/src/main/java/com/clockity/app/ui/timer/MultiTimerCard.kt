@@ -81,11 +81,11 @@ fun MultiTimerCard(
                     .padding(vertical = 2.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Background Track & Progress Arc (Blue when running, Yellow when paused)
+                // Background Track & Progress Arc (Blue when running, Gray when paused)
                 CircularProgressIndicator(
                     progress = { animatedProgress },
                     modifier = Modifier.fillMaxSize(),
-                    color = if (timer.isRunning) OneUIBlue else OneUIYellow,
+                    color = if (timer.isRunning) OneUIBlue else OneUITextSecondary,
                     strokeWidth = strokeWidth,
                     trackColor = Color(0xFF2C2C30),
                     strokeCap = StrokeCap.Round
