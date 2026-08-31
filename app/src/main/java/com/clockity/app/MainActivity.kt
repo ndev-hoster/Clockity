@@ -12,13 +12,25 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,11 +42,7 @@ import com.clockity.app.ui.components.ClockTab
 import com.clockity.app.ui.components.OneUIBottomBar
 import com.clockity.app.ui.stopwatch.StopwatchScreen
 import com.clockity.app.ui.stopwatch.StopwatchViewModel
-import com.clockity.app.ui.theme.ClockityTheme
-import com.clockity.app.ui.theme.OneUIBlack
-import com.clockity.app.ui.theme.OneUIBlue
-import com.clockity.app.ui.theme.OneUITextPrimary
-import com.clockity.app.ui.theme.OneUITextSecondary
+import com.clockity.app.ui.theme.*
 import com.clockity.app.ui.timer.TimerScreen
 import com.clockity.app.ui.timer.TimerViewModel
 import com.clockity.app.ui.worldclock.WorldClockScreen
@@ -105,7 +113,7 @@ class MainActivity : ComponentActivity() {
         if (runningTimers || isPomoRunning || isStopwatchRunning) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val params = PictureInPictureParams.Builder()
-                    .setAspectRatio(Rational(16, 9))
+                    .setAspectRatio(Rational(239, 100))
                     .build()
                 enterPictureInPictureMode(params)
             }
@@ -130,11 +138,42 @@ fun PipTimerView(
     val runningTimer = timerState.activeTimers.firstOrNull { it.isRunning || it.isPaused }
     val pomo = timerState.pomodoroState
 
-    val swFormatted = remember(swState.elapsedMillis) {
+    val timeText: String
+    val isRunning: Boolean
+    val progress: Float
+    val onTogglePlayPause: () -> Unit
+
+    if (runningTimer != null) {
+        timeText = runningTimer.formatRemaining()
+        isRunning = runningTimer.isRunning
+        progress = runningTimer.progress
+        onTogglePlayPause = {
+            if (runningTimer.isRunning) timerViewModel.pauseTimer(runningTimer.id)
+            else timerViewModel.resumeTimer(runningTimer.id)
+        }
+    } else if (pomo.isRunning || pomo.isPaused) {
+        timeText = pomo.formatRemainingTime()
+        isRunning = pomo.isRunning
+        progress = pomo.progress
+        onTogglePlayPause = {
+            if (pomo.isRunning) timerViewModel.pausePomodoro()
+            else timerViewModel.startPomodoro()
+        }
+    } else if (swState.isRunning || swState.elapsedMillis > 0) {
         val mins = swState.elapsedMillis / 60000
         val secs = (swState.elapsedMillis % 60000) / 1000
-        val cs = (swState.elapsedMillis % 1000) / 10
-        String.format("%02d:%02d.%02d", mins, secs, cs)
+        timeText = String.format("%02d:%02d", mins, secs)
+        isRunning = swState.isRunning
+        progress = ((swState.elapsedMillis % 60000) / 60000f)
+        onTogglePlayPause = {
+            if (swState.isRunning) stopwatchViewModel.pause()
+            else stopwatchViewModel.start()
+        }
+    } else {
+        timeText = "00:00"
+        isRunning = false
+        progress = 0f
+        onTogglePlayPause = {}
     }
 
     Box(
@@ -143,52 +182,51 @@ fun PipTimerView(
             .background(OneUIBlack),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            if (runningTimer != null) {
-                Text(
-                    text = runningTimer.title,
+        // Floating Pill Container
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(0.96f)
+                .fillMaxHeight(0.88f)
+                .clip(CircleShape)
+                .background(OneUICardElevated)
+                .border(BorderStroke(1.dp, OneUIDivider), CircleShape)
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Left: Large Digital Time Display
+            Text(
+                text = timeText,
+                color = Color.White,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.5).sp
+            )
+
+            // Right: Circular Progress Ring & Interactive Play/Pause Button
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        onTogglePlayPause()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxSize(),
                     color = OneUIBlue,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
+                    strokeWidth = 3.5.dp,
+                    trackColor = OneUIDivider
                 )
-                Text(
-                    text = runningTimer.formatRemainingTime(),
-                    color = OneUITextPrimary,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            } else if (pomo.isRunning || pomo.isPaused) {
-                Text(
-                    text = pomo.phase.title,
-                    color = OneUIBlue,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = pomo.formatRemainingTime(),
-                    color = OneUITextPrimary,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            } else if (swState.isRunning) {
-                Text(
-                    text = "Stopwatch",
-                    color = OneUIBlue,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = swFormatted,
-                    color = OneUITextPrimary,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            } else {
-                Text(
-                    text = "Clockity",
-                    color = OneUITextSecondary,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                Icon(
+                    imageVector = if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isRunning) "Pause" else "Resume",
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
