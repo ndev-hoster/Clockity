@@ -32,8 +32,9 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Running Timer Card with fixed relative 1/5th horizontal width.
- * Progress is Blue when running, Yellow when paused.
+ * Running Timer Card with relative 1/5th horizontal width.
+ * Fully contained layout where pause and cancel buttons are positioned
+ * relatively inside the card with no clipping.
  */
 @Composable
 fun MultiTimerCard(
@@ -56,23 +57,21 @@ fun MultiTimerCard(
 
     BoxWithConstraints(
         modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(OneUICardDark)
-            .border(BorderStroke(1.dp, OneUIDivider), RoundedCornerShape(18.dp))
-            .padding(8.dp)
+            .border(BorderStroke(1.dp, OneUIDivider), RoundedCornerShape(20.dp))
+            .padding(12.dp)
     ) {
         val cardWidth = maxWidth
         val isWide = cardWidth >= 110.dp
-        val ringSize = (cardWidth - 20.dp).coerceIn(48.dp, 120.dp)
+        val ringSize = (cardWidth - 16.dp).coerceIn(48.dp, 120.dp)
         val strokeWidth = if (isWide) 4.5.dp else 3.dp
         val timeFontSize = if (isWide) 16.sp else if (cardWidth >= 75.dp) 12.sp else 10.sp
-        val buttonSize = if (isWide) 28.dp else 20.dp
-        val iconSize = if (isWide) 14.dp else 10.dp
+        val buttonSize = if (isWide) 32.dp else 22.dp
+        val iconSize = if (isWide) 16.dp else 11.dp
 
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = buttonSize / 2),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Circular Ring with Info in Center
@@ -142,47 +141,55 @@ fun MultiTimerCard(
                     }
                 }
             }
-        }
 
-        // Action Buttons: Cancel in Bottom-Left, Pause/Resume in Bottom-Right
-        IconButton(
-            onClick = onCancel,
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .size(buttonSize)
-                .clip(CircleShape)
-                .background(OneUIRedCloseBg)
-                .border(BorderStroke(1.dp, OneUIRedCloseBorder), CircleShape)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Cancel Timer",
-                tint = OneUIRed,
-                modifier = Modifier.size(iconSize)
-            )
-        }
+            Spacer(modifier = Modifier.height(8.dp))
 
-        IconButton(
-            onClick = { if (timer.isRunning) onPause() else onResume() },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .size(buttonSize)
-                .clip(CircleShape)
-                .background(if (timer.isRunning) OneUIYellowPauseBg else OneUIBlueResumeBg)
-                .border(
-                    BorderStroke(
-                        1.dp,
-                        if (timer.isRunning) OneUIYellowPauseBorder else OneUIBlueResumeBorder
-                    ),
-                    CircleShape
-                )
-        ) {
-            Icon(
-                imageVector = if (timer.isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (timer.isRunning) "Pause" else "Resume",
-                tint = Color.White,
-                modifier = Modifier.size(iconSize)
-            )
+            // Action Buttons Row positioned inside card padding (no clipping)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Cancel Button (Left)
+                IconButton(
+                    onClick = onCancel,
+                    modifier = Modifier
+                        .size(buttonSize)
+                        .clip(CircleShape)
+                        .background(OneUIRedCloseBg)
+                        .border(BorderStroke(1.dp, OneUIRedCloseBorder), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Cancel Timer",
+                        tint = OneUIRed,
+                        modifier = Modifier.size(iconSize)
+                    )
+                }
+
+                // Pause / Resume Button (Right)
+                IconButton(
+                    onClick = { if (timer.isRunning) onPause() else onResume() },
+                    modifier = Modifier
+                        .size(buttonSize)
+                        .clip(CircleShape)
+                        .background(if (timer.isRunning) OneUIYellowPauseBg else OneUIBlueResumeBg)
+                        .border(
+                            BorderStroke(
+                                1.dp,
+                                if (timer.isRunning) OneUIYellowPauseBorder else OneUIBlueResumeBorder
+                            ),
+                            CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = if (timer.isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (timer.isRunning) "Pause" else "Resume",
+                        tint = Color.White,
+                        modifier = Modifier.size(iconSize)
+                    )
+                }
+            }
         }
     }
 }
