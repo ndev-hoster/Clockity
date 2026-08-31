@@ -10,6 +10,9 @@ interface AlarmDao {
     @Query("SELECT * FROM alarms ORDER BY hour ASC, minute ASC")
     fun getAllAlarms(): Flow<List<Alarm>>
 
+    @Query("SELECT * FROM alarms ORDER BY hour ASC, minute ASC")
+    suspend fun getAllAlarmsSync(): List<Alarm>
+
     @Query("SELECT * FROM alarms WHERE isEnabled = 1")
     suspend fun getEnabledAlarms(): List<Alarm>
 

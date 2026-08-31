@@ -10,6 +10,9 @@ interface AlarmGroupDao {
     @Query("SELECT * FROM alarm_groups ORDER BY id ASC")
     fun getAllGroups(): Flow<List<AlarmGroup>>
 
+    @Query("SELECT * FROM alarm_groups ORDER BY id ASC")
+    suspend fun getAllGroupsSync(): List<AlarmGroup>
+
     @Query("SELECT * FROM alarm_groups WHERE id = :id")
     suspend fun getGroupById(id: Long): AlarmGroup?
 

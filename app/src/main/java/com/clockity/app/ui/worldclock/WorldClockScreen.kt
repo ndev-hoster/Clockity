@@ -16,7 +16,8 @@ import com.clockity.app.ui.theme.*
 @Composable
 fun WorldClockScreen(
     viewModel: WorldClockViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenBackup: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
@@ -30,7 +31,8 @@ fun WorldClockScreen(
         OneUIHeader(
             title = "World clock",
             subtitle = "${uiState.cities.size} cities saved",
-            onAddClick = { showAddDialog = true }
+            onAddClick = { showAddDialog = true },
+            onMenuClick = onOpenBackup
         )
 
         LazyColumn(

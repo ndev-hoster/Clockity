@@ -10,6 +10,9 @@ interface TimerPresetDao {
     @Query("SELECT * FROM timer_presets ORDER BY id ASC")
     fun getAllPresets(): Flow<List<TimerPreset>>
 
+    @Query("SELECT * FROM timer_presets ORDER BY id ASC")
+    suspend fun getAllPresetsSync(): List<TimerPreset>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPreset(preset: TimerPreset): Long
 

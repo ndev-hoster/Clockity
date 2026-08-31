@@ -25,4 +25,6 @@ data class ActiveTimer(
             String.format("%02d:%02d", minutes, seconds)
         }
     }
+
+    fun formatRemainingTime(): String = formatRemaining()
 }

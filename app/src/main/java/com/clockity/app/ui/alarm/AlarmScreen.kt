@@ -24,7 +24,8 @@ import com.clockity.app.ui.theme.*
 @Composable
 fun AlarmScreen(
     viewModel: AlarmViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenBackup: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -47,6 +48,7 @@ fun AlarmScreen(
             OneUIHeader(
                 title = "Alarm",
                 subtitle = uiState.nextAlarmSummary,
+                onMenuClick = onOpenBackup,
                 extraContent = {
                     // Secondary Action Row (Create New Group button)
                     Row(

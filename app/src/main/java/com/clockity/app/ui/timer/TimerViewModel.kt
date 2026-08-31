@@ -5,16 +5,18 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.clockity.app.data.local.ClockityDatabase
 import com.clockity.app.data.models.ActiveTimer
+import com.clockity.app.data.models.PomodoroState
 import com.clockity.app.data.models.TimerPreset
+import com.clockity.app.utils.TimerManager
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 data class TimerUiState(
     val presets: List<TimerPreset> = emptyList(),
-    val activeTimers: List<ActiveTimer> = emptyList()
+    val activeTimers: List<ActiveTimer> = emptyList(),
+    val pomodoroState: PomodoroState = PomodoroState(),
+    val ringingTimer: ActiveTimer? = null
 )
 
 class TimerViewModel(application: Application) : AndroidViewModel(application) {
@@ -22,16 +24,17 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
     private val db = ClockityDatabase.getDatabase(application)
     private val presetDao = db.timerPresetDao()
 
-    private val _activeTimers = MutableStateFlow<List<ActiveTimer>>(emptyList())
-    private var tickerJob: Job? = null
-
     val uiState: StateFlow<TimerUiState> = combine(
         presetDao.getAllPresets(),
-        _activeTimers
-    ) { presets, active ->
+        TimerManager.activeTimers,
+        TimerManager.pomodoroState,
+        TimerManager.ringingTimer
+    ) { presets, active, pomo, ringing ->
         TimerUiState(
             presets = presets,
-            activeTimers = active
+            activeTimers = active,
+            pomodoroState = pomo,
+            ringingTimer = ringing
         )
     }.stateIn(
         scope = viewModelScope,
@@ -40,7 +43,6 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     init {
-        startTickerLoop()
         viewModelScope.launch(Dispatchers.IO) {
             if (presetDao.getCount() == 0) {
                 val defaultPresets = listOf(
@@ -56,80 +58,52 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun startTickerLoop() {
-        tickerJob?.cancel()
-        tickerJob = viewModelScope.launch {
-            while (true) {
-                delay(200)
-                val currentList = _activeTimers.value
-                if (currentList.any { it.isRunning }) {
-                    val updated = currentList.map { timer ->
-                        if (timer.isRunning && timer.remainingMillis > 0) {
-                            val newRemaining = (timer.remainingMillis - 200).coerceAtLeast(0L)
-                            timer.copy(
-                                remainingMillis = newRemaining,
-                                isRunning = newRemaining > 0
-                            )
-                        } else {
-                            timer
-                        }
-                    }
-                    _activeTimers.value = updated
-                }
-            }
-        }
-    }
-
     fun startPreset(preset: TimerPreset) {
-        val totalMs = preset.totalSeconds * 1000L
-        val timer = ActiveTimer(
-            title = preset.title,
-            totalMillis = totalMs,
-            remainingMillis = totalMs,
-            isRunning = true
-        )
-        _activeTimers.value = listOf(timer) + _activeTimers.value
+        TimerManager.startPreset(preset)
     }
 
     fun startCustomTimer(hours: Int, minutes: Int, seconds: Int, label: String) {
-        val totalSeconds = (hours * 3600L) + (minutes * 60L) + seconds
-        if (totalSeconds <= 0) return
-        val totalMs = totalSeconds * 1000L
-        val timer = ActiveTimer(
-            title = label.ifBlank { "Timer" },
-            totalMillis = totalMs,
-            remainingMillis = totalMs,
-            isRunning = true
-        )
-        _activeTimers.value = listOf(timer) + _activeTimers.value
+        TimerManager.startCustomTimer(hours, minutes, seconds, label)
     }
 
     fun pauseTimer(id: String) {
-        _activeTimers.value = _activeTimers.value.map {
-            if (it.id == id) it.copy(isRunning = false, isPaused = true) else it
-        }
+        TimerManager.pauseTimer(id)
     }
 
     fun resumeTimer(id: String) {
-        _activeTimers.value = _activeTimers.value.map {
-            if (it.id == id) it.copy(isRunning = true, isPaused = false) else it
-        }
+        TimerManager.resumeTimer(id)
     }
 
     fun cancelTimer(id: String) {
-        _activeTimers.value = _activeTimers.value.filter { it.id != id }
+        TimerManager.cancelTimer(id)
     }
 
     fun addOneMinute(id: String) {
-        _activeTimers.value = _activeTimers.value.map {
-            if (it.id == id) {
-                val newRem = it.remainingMillis + 60_000L
-                val newTot = it.totalMillis + 60_000L
-                it.copy(remainingMillis = newRem, totalMillis = newTot)
-            } else it
-        }
+        TimerManager.addOneMinute(id)
     }
 
+    fun stopRinging() {
+        TimerManager.stopRinging()
+    }
+
+    // Pomodoro Controls
+    fun startPomodoro() {
+        TimerManager.startPomodoro()
+    }
+
+    fun pausePomodoro() {
+        TimerManager.pausePomodoro()
+    }
+
+    fun resetPomodoro() {
+        TimerManager.resetPomodoro()
+    }
+
+    fun skipPomodoroPhase() {
+        TimerManager.skipPomodoroPhase()
+    }
+
+    // Presets Management
     fun addPreset(title: String, durationSeconds: Long, emoji: String = "") {
         val cleanTitle = title.trim()
         if (cleanTitle.isBlank() || durationSeconds <= 0) return

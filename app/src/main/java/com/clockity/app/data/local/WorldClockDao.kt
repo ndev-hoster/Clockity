@@ -10,6 +10,9 @@ interface WorldClockDao {
     @Query("SELECT * FROM world_cities ORDER BY displayOrder ASC, id ASC")
     fun getAllCities(): Flow<List<WorldCity>>
 
+    @Query("SELECT * FROM world_cities ORDER BY displayOrder ASC, id ASC")
+    suspend fun getAllCitiesSync(): List<WorldCity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCity(city: WorldCity): Long
 
