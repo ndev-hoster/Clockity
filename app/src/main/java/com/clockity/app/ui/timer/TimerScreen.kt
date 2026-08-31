@@ -39,7 +39,6 @@ fun TimerScreen(
     var inputHours by remember { mutableIntStateOf(0) }
     var inputMinutes by remember { mutableIntStateOf(10) }
     var inputSeconds by remember { mutableIntStateOf(0) }
-    var timerLabel by remember { mutableStateOf("") }
 
     var showAddPresetDialog by remember { mutableStateOf(false) }
     var editingPreset by remember { mutableStateOf<TimerPreset?>(null) }
@@ -241,38 +240,23 @@ fun TimerScreen(
                             }
                         }
 
-                        OutlinedTextField(
-                            value = timerLabel,
-                            onValueChange = { timerLabel = it },
-                            placeholder = { Text("Timer Name (optional)") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = OneUITextPrimary,
-                                unfocusedTextColor = OneUITextPrimary,
-                                focusedBorderColor = OneUIBlue,
-                                unfocusedBorderColor = OneUIDivider
-                            )
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         Button(
                             onClick = {
-                                viewModel.startCustomTimer(inputHours, inputMinutes, inputSeconds, timerLabel)
-                                timerLabel = ""
+                                viewModel.startCustomTimer(inputHours, inputMinutes, inputSeconds, "Timer")
                             },
                             enabled = (inputHours > 0 || inputMinutes > 0 || inputSeconds > 0),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(50.dp),
-                            shape = RoundedCornerShape(16.dp),
+                                .height(48.dp),
+                            shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = OneUIBlue,
                                 contentColor = OneUIBlack
                             )
                         ) {
-                            Text("Start Timer", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text("Start Timer", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

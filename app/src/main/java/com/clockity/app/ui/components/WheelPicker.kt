@@ -41,7 +41,8 @@ import androidx.compose.ui.unit.sp
 import com.clockity.app.ui.theme.*
 
 /**
- * Reusable vertical scrollable drum number wheel with haptic tick feedback.
+ * Reusable vertical scrollable drum number wheel with haptic tick feedback,
+ * single-item compact view, and infinite wrap-around looping.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -50,12 +51,18 @@ fun ScrollableNumberWheel(
     selectedIndex: Int,
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    itemHeight: Dp = 44.dp,
-    visibleItemsCount: Int = 3,
+    itemHeight: Dp = 50.dp,
+    visibleItemsCount: Int = 1,
+    isLooping: Boolean = true,
     onClick: (() -> Unit)? = null
 ) {
-    val initialIdx = selectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIdx)
+    val count = items.size.coerceAtLeast(1)
+    val loopMultiplier = if (isLooping && count > 1) 1000 else 1
+    val totalVirtualItems = count * loopMultiplier
+    val middleBase = if (isLooping && count > 1) (loopMultiplier / 2) * count else 0
+
+    val initialVirtualIdx = (middleBase + (selectedIndex % count)).coerceIn(0, totalVirtualItems - 1)
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialVirtualIdx)
     val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
     val context = LocalContext.current
     val view = LocalView.current
@@ -70,71 +77,77 @@ fun ScrollableNumberWheel(
         }
     }
 
-    // Detect center item
-    val currentIndex by remember {
+    // Detect center virtual item
+    val currentVirtualIndex by remember {
         derivedStateOf {
             val layoutInfo = listState.layoutInfo
             val visibleItems = layoutInfo.visibleItemsInfo
-            if (visibleItems.isEmpty()) selectedIndex
+            if (visibleItems.isEmpty()) initialVirtualIdx
             else {
                 val centerOffset = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
                 val closest = visibleItems.minByOrNull { item ->
                     val itemCenter = item.offset + item.size / 2
                     kotlin.math.abs(itemCenter - centerOffset)
                 }
-                closest?.index ?: selectedIndex
+                closest?.index ?: initialVirtualIdx
             }
         }
     }
 
-    // Track programmatic scrolling to prevent re-entrant callbacks during animation
-    var isProgrammaticScroll by remember { mutableStateOf(false) }
+    val currentActualIndex by remember {
+        derivedStateOf { (currentVirtualIndex % count).coerceIn(0, count - 1) }
+    }
 
-    // Handle user scrolling change & haptics
-    var lastHapticIndex by remember { mutableIntStateOf(selectedIndex) }
-    LaunchedEffect(currentIndex) {
-        if (currentIndex in items.indices) {
-            if (listState.isScrollInProgress && !isProgrammaticScroll) {
-                onValueChange(currentIndex)
-            }
-            if (currentIndex != lastHapticIndex) {
-                lastHapticIndex = currentIndex
-                try {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        vibrator?.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
-                    } else {
-                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                    }
-                } catch (_: Exception) {
+    // Track programmatic scrolling
+    var isProgrammaticScroll by remember { mutableStateOf(false) }
+    var lastHapticIndex by remember { mutableIntStateOf(selectedIndex % count) }
+
+    // Handle user scroll updates & haptic ticks
+    LaunchedEffect(currentActualIndex) {
+        if (listState.isScrollInProgress && !isProgrammaticScroll) {
+            onValueChange(currentActualIndex)
+        }
+        if (currentActualIndex != lastHapticIndex) {
+            lastHapticIndex = currentActualIndex
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    vibrator?.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
+                } else {
                     view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                 }
+            } catch (_: Exception) {
+                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
             }
         }
     }
 
-    // Smoothly animate to target when external selectedIndex changes (e.g. Clear button scrolling backwards to 0)
+    // Smoothly animate to target when external selectedIndex changes (e.g. Clear button)
     LaunchedEffect(selectedIndex) {
-        if (selectedIndex in items.indices && selectedIndex != currentIndex && !listState.isScrollInProgress) {
+        val targetActual = selectedIndex % count
+        if (targetActual != currentActualIndex && !listState.isScrollInProgress) {
             isProgrammaticScroll = true
             try {
-                listState.animateScrollToItem(selectedIndex)
+                val diff = targetActual - currentActualIndex
+                val targetVirtual = (currentVirtualIndex + diff).coerceIn(0, totalVirtualItems - 1)
+                listState.animateScrollToItem(targetVirtual)
             } finally {
                 isProgrammaticScroll = false
             }
-            lastHapticIndex = selectedIndex
+            lastHapticIndex = targetActual
         }
     }
 
     Box(
         modifier = modifier
             .height(itemHeight * visibleItemsCount)
+            .clip(RoundedCornerShape(14.dp))
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
         contentAlignment = Alignment.Center
     ) {
-        // Center Selected Highlight Bar
+        // Selected Highlight Box
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.9f)
+                .fillMaxWidth(0.92f)
                 .height(itemHeight)
                 .clip(RoundedCornerShape(12.dp))
                 .background(OneUIBlue.copy(alpha = 0.12f))
@@ -143,12 +156,12 @@ fun ScrollableNumberWheel(
         LazyColumn(
             state = listState,
             flingBehavior = snapFlingBehavior,
-            contentPadding = PaddingValues(vertical = itemHeight * (visibleItemsCount / 2)),
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            items(items.size) { index ->
-                val isSelected = index == currentIndex
+            items(totalVirtualItems) { virtualIdx ->
+                val actualIdx = virtualIdx % count
+                val isSelected = virtualIdx == currentVirtualIndex
                 Box(
                     modifier = Modifier
                         .height(itemHeight)
@@ -156,8 +169,8 @@ fun ScrollableNumberWheel(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = items[index],
-                        fontSize = if (isSelected) 30.sp else 20.sp,
+                        text = items[actualIdx],
+                        fontSize = if (isSelected) 32.sp else 22.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                         color = if (isSelected) OneUITextPrimary else OneUITextTertiary,
                         textAlign = TextAlign.Center
