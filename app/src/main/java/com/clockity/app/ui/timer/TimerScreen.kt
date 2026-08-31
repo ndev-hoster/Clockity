@@ -158,48 +158,97 @@ fun TimerScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 contentPadding = PaddingValues(bottom = 96.dp, top = 4.dp)
             ) {
-                // 1. Active Running Timers Section (Rendered FIRST at the top)
+                // 1. Quick Presets Row (FIRST)
+                item {
+                    PresetChips(
+                        presets = uiState.presets,
+                        onSelectPreset = { viewModel.startPreset(it) },
+                        onEditPreset = { editingPreset = it },
+                        onAddPreset = { showAddPresetDialog = true }
+                    )
+                }
+
+                // 2. Active Running Timers Section (BETWEEN Presets & New Timer)
                 if (uiState.activeTimers.isNotEmpty()) {
                     item {
                         Text(
-                            text = "Running Timers",
+                            text = "Running Timers (${uiState.activeTimers.size}/5)",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = OneUITextSecondary,
-                            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                            modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 2.dp)
                         )
                     }
 
                     item {
-                        if (uiState.activeTimers.size == 1) {
+                        val timerCount = uiState.activeTimers.size
+                        if (timerCount == 1) {
                             val timer = uiState.activeTimers.first()
                             MultiTimerCard(
                                 timer = timer,
                                 onPause = { viewModel.pauseTimer(timer.id) },
                                 onResume = { viewModel.resumeTimer(timer.id) },
                                 onCancel = { viewModel.cancelTimer(timer.id) },
+                                compactMode = 0,
                                 modifier = Modifier.fillMaxWidth()
                             )
-                        } else {
-                            androidx.compose.foundation.lazy.LazyRow(
+                        } else if (timerCount == 2) {
+                            Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                items(uiState.activeTimers, key = { it.id }) { timer ->
+                                uiState.activeTimers.forEach { timer ->
                                     MultiTimerCard(
                                         timer = timer,
                                         onPause = { viewModel.pauseTimer(timer.id) },
                                         onResume = { viewModel.resumeTimer(timer.id) },
                                         onCancel = { viewModel.cancelTimer(timer.id) },
-                                        modifier = Modifier.width(260.dp)
+                                        compactMode = 1,
+                                        modifier = Modifier.weight(1f)
                                     )
+                                }
+                            }
+                        } else if (timerCount == 3) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                uiState.activeTimers.forEach { timer ->
+                                    MultiTimerCard(
+                                        timer = timer,
+                                        onPause = { viewModel.pauseTimer(timer.id) },
+                                        onResume = { viewModel.resumeTimer(timer.id) },
+                                        onCancel = { viewModel.cancelTimer(timer.id) },
+                                        compactMode = 2,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        } else {
+                            // 4 or 5 Timers: responsive 1/3rd width cards in a horizontal row
+                            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                                val cardWidth = (maxWidth - 16.dp) / 3f
+                                androidx.compose.foundation.lazy.LazyRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    items(uiState.activeTimers, key = { it.id }) { timer ->
+                                        MultiTimerCard(
+                                            timer = timer,
+                                            onPause = { viewModel.pauseTimer(timer.id) },
+                                            onResume = { viewModel.resumeTimer(timer.id) },
+                                            onCancel = { viewModel.cancelTimer(timer.id) },
+                                            compactMode = 2,
+                                            modifier = Modifier.width(cardWidth)
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
 
-                // 2. Custom Timer Picker Card
+                // 3. Custom Timer Picker Card (NEW TIMER)
                 item {
                     Column(
                         modifier = Modifier
@@ -277,7 +326,7 @@ fun TimerScreen(
                             onClick = {
                                 viewModel.startCustomTimer(inputHours, inputMinutes, inputSeconds, "Timer")
                             },
-                            enabled = (inputHours > 0 || inputMinutes > 0 || inputSeconds > 0),
+                            enabled = (inputHours > 0 || inputMinutes > 0 || inputSeconds > 0) && uiState.activeTimers.size < 5,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp),
@@ -287,19 +336,13 @@ fun TimerScreen(
                                 contentColor = OneUIBlack
                             )
                         ) {
-                            Text("Start Timer", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = if (uiState.activeTimers.size >= 5) "Max Timers Reached (5/5)" else "Start Timer",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
-                }
-
-                // 3. Quick Presets Row
-                item {
-                    PresetChips(
-                        presets = uiState.presets,
-                        onSelectPreset = { viewModel.startPreset(it) },
-                        onEditPreset = { editingPreset = it },
-                        onAddPreset = { showAddPresetDialog = true }
-                    )
                 }
             }
         } else {

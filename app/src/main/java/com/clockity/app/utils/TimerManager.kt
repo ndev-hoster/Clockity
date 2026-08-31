@@ -150,6 +150,10 @@ object TimerManager {
     }
 
     fun startCustomTimer(hours: Int, minutes: Int, seconds: Int, label: String) {
+        if (_activeTimers.value.size >= 5) {
+            appContext?.let { android.widget.Toast.makeText(it, "Maximum of 5 active timers allowed", android.widget.Toast.LENGTH_SHORT).show() }
+            return
+        }
         val totalSeconds = (hours * 3600L) + (minutes * 60L) + seconds
         if (totalSeconds <= 0) return
         val totalMs = totalSeconds * 1000L
@@ -164,6 +168,10 @@ object TimerManager {
     }
 
     fun startPreset(preset: TimerPreset) {
+        if (_activeTimers.value.size >= 5) {
+            appContext?.let { android.widget.Toast.makeText(it, "Maximum of 5 active timers allowed", android.widget.Toast.LENGTH_SHORT).show() }
+            return
+        }
         val totalMs = preset.totalSeconds * 1000L
         val timer = ActiveTimer(
             title = preset.title,
