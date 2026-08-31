@@ -54,66 +54,69 @@ fun PresetChips(
         }
 
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             items(presets, key = { it.id }) { preset ->
                 Row(
                     modifier = Modifier
-                        .height(52.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .height(64.dp)
+                        .clip(RoundedCornerShape(18.dp))
                         .background(OneUICardDark)
                         .combinedClickable(
                             onClick = { onSelectPreset(preset) },
                             onLongClick = { onEditPreset(preset) }
                         )
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(verticalArrangement = Arrangement.Center) {
+                    Column(
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(vertical = 2.dp)
+                    ) {
                         Text(
                             text = preset.title,
-                            fontSize = 13.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = OneUITextPrimary
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = preset.formatDurationSummary(),
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = OneUIBlueLight
                         )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(10.dp))
                             .background(OneUICardElevated)
                             .clickable { onEditPreset(preset) }
-                            .padding(4.dp),
+                            .padding(6.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Edit Preset",
                             tint = OneUITextSecondary,
-                            modifier = Modifier.size(12.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }
             }
 
-            // + Add preset button
+            // + Add preset button (increased to match full preset card height)
             item {
                 Row(
                     modifier = Modifier
-                        .height(52.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .height(64.dp)
+                        .clip(RoundedCornerShape(18.dp))
                         .background(OneUICardElevated)
                         .clickable { onAddPreset() }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
@@ -121,14 +124,14 @@ fun PresetChips(
                         imageVector = Icons.Default.Add,
                         contentDescription = "Add Preset",
                         tint = OneUIBlue,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "New",
                         color = OneUIBlue,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }

@@ -32,9 +32,9 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Running Timer Card matching One UI circular progress theme.
+ * Running Timer Card matching One UI circular progress reference design.
  * Progress is Blue when running, Yellow when paused.
- * Supports compactMode: 0 = Full width, 1 = Half (50%), 2 = Third (33%).
+ * Automatically adapts dimensions based on active timerCount (1, 2, 3, 4, 5).
  */
 @Composable
 fun MultiTimerCard(
@@ -43,7 +43,7 @@ fun MultiTimerCard(
     onResume: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
-    compactMode: Int = 0
+    timerCount: Int = 1
 ) {
     val animatedProgress by animateFloatAsState(
         targetValue = timer.progress,
@@ -56,46 +56,55 @@ fun MultiTimerCard(
         sdf.format(Date(targetTime))
     }
 
-    val cornerRadius = when (compactMode) {
-        0 -> 26.dp
-        1 -> 20.dp
-        else -> 16.dp
+    val cornerRadius = when {
+        timerCount == 1 -> 26.dp
+        timerCount == 2 -> 20.dp
+        timerCount == 3 -> 18.dp
+        else -> 14.dp
     }
 
-    val cardPadding = when (compactMode) {
-        0 -> 16.dp
-        1 -> 10.dp
+    val cardPadding = when {
+        timerCount == 1 -> 16.dp
+        timerCount == 2 -> 12.dp
+        timerCount == 3 -> 8.dp
         else -> 6.dp
     }
 
-    val ringSize = when (compactMode) {
-        0 -> 170.dp
-        1 -> 120.dp
-        else -> 82.dp
+    val ringSize = when {
+        timerCount == 1 -> 170.dp
+        timerCount == 2 -> 125.dp
+        timerCount == 3 -> 92.dp
+        timerCount == 4 -> 72.dp
+        else -> 62.dp
     }
 
-    val strokeWidth = when (compactMode) {
-        0 -> 6.dp
-        1 -> 4.5.dp
-        else -> 3.5.dp
+    val strokeWidth = when {
+        timerCount == 1 -> 6.dp
+        timerCount == 2 -> 5.dp
+        timerCount == 3 -> 4.dp
+        else -> 3.dp
     }
 
-    val timeFontSize = when (compactMode) {
-        0 -> 32.sp
-        1 -> 21.sp
-        else -> 14.sp
+    val timeFontSize = when {
+        timerCount == 1 -> 32.sp
+        timerCount == 2 -> 22.sp
+        timerCount == 3 -> 16.sp
+        timerCount == 4 -> 12.sp
+        else -> 10.sp
     }
 
-    val buttonSize = when (compactMode) {
-        0 -> 38.dp
-        1 -> 30.dp
-        else -> 24.dp
+    val buttonSize = when {
+        timerCount == 1 -> 38.dp
+        timerCount == 2 -> 32.dp
+        timerCount == 3 -> 26.dp
+        else -> 20.dp
     }
 
-    val iconSize = when (compactMode) {
-        0 -> 18.dp
-        1 -> 14.dp
-        else -> 11.dp
+    val iconSize = when {
+        timerCount == 1 -> 18.dp
+        timerCount == 2 -> 15.dp
+        timerCount == 3 -> 12.dp
+        else -> 9.dp
     }
 
     Box(
@@ -106,7 +115,9 @@ fun MultiTimerCard(
             .padding(cardPadding)
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = (buttonSize / 3)),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Circular Ring with Info in Center
@@ -131,7 +142,7 @@ fun MultiTimerCard(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    if (compactMode < 2) {
+                    if (timerCount <= 2) {
                         // Bell icon & Target End Time
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -141,17 +152,16 @@ fun MultiTimerCard(
                                 imageVector = Icons.Default.Notifications,
                                 contentDescription = null,
                                 tint = OneUITextSecondary,
-                                modifier = Modifier.size(if (compactMode == 0) 13.dp else 10.dp)
+                                modifier = Modifier.size(if (timerCount == 1) 13.dp else 10.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = targetEndTimeStr,
                                 color = OneUITextSecondary,
-                                fontSize = if (compactMode == 0) 12.sp else 10.sp,
+                                fontSize = if (timerCount == 1) 12.sp else 10.sp,
                                 fontWeight = FontWeight.Medium
                             )
                         }
-
                         Spacer(modifier = Modifier.height(2.dp))
                     }
 
@@ -164,68 +174,62 @@ fun MultiTimerCard(
                         letterSpacing = (-0.5).sp
                     )
 
-                    // Title
-                    Text(
-                        text = timer.title,
-                        color = OneUITextSecondary,
-                        fontSize = if (compactMode == 0) 13.sp else if (compactMode == 1) 11.sp else 9.sp,
-                        fontWeight = FontWeight.Normal,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(if (compactMode == 0) 10.dp else 6.dp))
-
-            // Action Buttons Row (Anchored to the circular ring width)
-            Row(
-                modifier = Modifier
-                    .width(ringSize + 24.dp)
-                    .padding(horizontal = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Cancel Button (Bottom Left)
-                IconButton(
-                    onClick = onCancel,
-                    modifier = Modifier
-                        .size(buttonSize)
-                        .clip(CircleShape)
-                        .background(OneUIRedCloseBg)
-                        .border(BorderStroke(1.dp, OneUIRedCloseBorder), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Cancel Timer",
-                        tint = OneUIRed,
-                        modifier = Modifier.size(iconSize)
-                    )
-                }
-
-                // Pause / Resume Button (Bottom Right)
-                IconButton(
-                    onClick = { if (timer.isRunning) onPause() else onResume() },
-                    modifier = Modifier
-                        .size(buttonSize)
-                        .clip(CircleShape)
-                        .background(if (timer.isRunning) OneUIYellowPauseBg else OneUIBlueResumeBg)
-                        .border(
-                            BorderStroke(
-                                1.dp,
-                                if (timer.isRunning) OneUIYellowPauseBorder else OneUIBlueResumeBorder
-                            ),
-                            CircleShape
+                    // Title (shown if space permits)
+                    if (timerCount <= 3) {
+                        Text(
+                            text = timer.title,
+                            color = OneUITextSecondary,
+                            fontSize = if (timerCount == 1) 13.sp else if (timerCount == 2) 11.sp else 9.sp,
+                            fontWeight = FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                ) {
-                    Icon(
-                        imageVector = if (timer.isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (timer.isRunning) "Pause" else "Resume",
-                        tint = Color.White,
-                        modifier = Modifier.size(iconSize)
-                    )
+                    }
                 }
             }
+        }
+
+        // Action Buttons: Cancel in Bottom-Left, Pause/Resume in Bottom-Right
+        // Cancel Button (Bottom-Left)
+        IconButton(
+            onClick = onCancel,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .size(buttonSize)
+                .clip(CircleShape)
+                .background(OneUIRedCloseBg)
+                .border(BorderStroke(1.dp, OneUIRedCloseBorder), CircleShape)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Cancel Timer",
+                tint = OneUIRed,
+                modifier = Modifier.size(iconSize)
+            )
+        }
+
+        // Pause / Resume Button (Bottom-Right)
+        IconButton(
+            onClick = { if (timer.isRunning) onPause() else onResume() },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .size(buttonSize)
+                .clip(CircleShape)
+                .background(if (timer.isRunning) OneUIYellowPauseBg else OneUIBlueResumeBg)
+                .border(
+                    BorderStroke(
+                        1.dp,
+                        if (timer.isRunning) OneUIYellowPauseBorder else OneUIBlueResumeBorder
+                    ),
+                    CircleShape
+                )
+        ) {
+            Icon(
+                imageVector = if (timer.isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                contentDescription = if (timer.isRunning) "Pause" else "Resume",
+                tint = Color.White,
+                modifier = Modifier.size(iconSize)
+            )
         }
     }
 }
