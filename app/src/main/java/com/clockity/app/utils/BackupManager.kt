@@ -375,7 +375,20 @@ object BackupManager {
         val minute = timeObj?.optInt("minute") ?: alarmObj.optInt("minute", 0)
 
         val scheduleObj = alarmObj.optJSONObject("schedule")
-        val daysOfWeek = scheduleObj?.optInt("daysOfWeek") ?: alarmObj.optInt("daysOfWeek", 0)
+        var daysOfWeek = scheduleObj?.optInt("daysOfWeek") ?: alarmObj.optInt("daysOfWeek", 0)
+
+        // Smart normalization for manual 0-indexed or 1-indexed bitmasks:
+        if (daysOfWeek == 127) {
+            daysOfWeek = 254 // 0b11111110 (Every day)
+        } else if (daysOfWeek == 31) {
+            daysOfWeek = 62 // 0b01111100 (Weekdays)
+        } else if (daysOfWeek == 96) {
+            daysOfWeek = 192 // 0b11000000 (Weekends)
+        } else if ((daysOfWeek and 1) != 0 && daysOfWeek <= 127) {
+            // 0-indexed bitmask shifted to 1-indexed
+            daysOfWeek = (daysOfWeek shl 1) and 0b11111110
+        }
+
         val rawDate = scheduleObj?.optLong("specificDateMillis", -1L) ?: alarmObj.optLong("specificDateMillis", -1L)
         val specificDate = if (rawDate > 0) rawDate else null
 

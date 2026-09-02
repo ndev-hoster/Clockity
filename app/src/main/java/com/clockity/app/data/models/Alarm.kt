@@ -38,7 +38,7 @@ data class Alarm(
     val soundUri: String = "default",
     val specificDateMillis: Long? = null
 ) {
-    fun isRepeating(): Boolean = daysOfWeek != 0 && specificDateMillis == null
+    fun isRepeating(): Boolean = daysOfWeek != 0 && (specificDateMillis == null || specificDateMillis <= 0)
 
     fun isDaySelected(dayOfWeek1To7: Int): Boolean {
         return (daysOfWeek and (1 shl dayOfWeek1To7)) != 0
@@ -50,14 +50,14 @@ data class Alarm(
     }
 
     fun formatDaysSummary(): String {
-        if (specificDateMillis != null) {
+        if (specificDateMillis != null && specificDateMillis > 0) {
             val sdf = java.text.SimpleDateFormat("EEE, MMM d", java.util.Locale.getDefault())
             return sdf.format(java.util.Date(specificDateMillis))
         }
         if (daysOfWeek == 0) return "Once"
-        if (daysOfWeek == 0b11111110) return "Every day"
-        if (daysOfWeek == 0b01111100) return "Weekdays"
-        if (daysOfWeek == 0b10000010) return "Weekends"
+        if (daysOfWeek == 0b11111110 || daysOfWeek == 254 || daysOfWeek == 127) return "Every day"
+        if (daysOfWeek == 0b01111100 || daysOfWeek == 62 || daysOfWeek == 31) return "Weekdays"
+        if (daysOfWeek == 0b11000000 || daysOfWeek == 192 || daysOfWeek == 96) return "Weekends"
 
         val dayNames = listOf("", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
         val active = mutableListOf<String>()
