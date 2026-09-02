@@ -114,35 +114,37 @@ fun AlarmItemCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Label & Days
+            // Alarm Name (if present, rendered on its own line)
+            if (alarm.label.isNotBlank()) {
+                Text(
+                    text = alarm.label,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = textColor,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+            }
+
+            // Schedule & Badges Row (Days of Week / Specific Date)
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (alarm.label.isNotBlank()) {
-                    Text(
-                        text = alarm.label,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = textColor
-                    )
-                    Text(
-                        text = " • ",
-                        fontSize = 14.sp,
-                        color = subTextColor
-                    )
-                }
-                if (alarm.specificDateMillis != null) {
+                if (alarm.specificDateMillis != null && alarm.specificDateMillis > 0) {
                     Icon(
                         imageVector = Icons.Default.CalendarToday,
                         contentDescription = "Specific Date",
                         tint = OneUIYellow,
-                        modifier = Modifier.size(13.dp).padding(end = 2.dp)
+                        modifier = Modifier.size(13.dp).padding(end = 4.dp)
                     )
                 }
                 Text(
                     text = alarm.formatDaysSummary(),
                     fontSize = 14.sp,
-                    color = if (alarm.specificDateMillis != null) OneUIYellow else subTextColor
+                    color = if (alarm.specificDateMillis != null && alarm.specificDateMillis > 0) OneUIYellow else subTextColor,
+                    maxLines = 1,
+                    softWrap = false
                 )
                 if (alarm.isGentleWakeUp && alarm.isEnabled) {
                     Spacer(modifier = Modifier.width(6.dp))
