@@ -39,9 +39,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -374,18 +376,29 @@ fun DirectTimeInputRow(
         else -> hour
     }
 
-    var hourText by remember(hour) {
-        mutableStateOf(if (is24Hour) String.format("%02d", hour) else String.format("%02d", hour12))
+    val initialHourStr = if (is24Hour) String.format("%02d", hour) else String.format("%02d", hour12)
+    val initialMinuteStr = String.format("%02d", minute)
+
+    var hourField by remember {
+        mutableStateOf(TextFieldValue(initialHourStr, selection = TextRange(0, initialHourStr.length)))
     }
-    var minuteText by remember(minute) {
-        mutableStateOf(String.format("%02d", minute))
+    var minuteField by remember {
+        mutableStateOf(TextFieldValue(initialMinuteStr, selection = TextRange(initialMinuteStr.length)))
     }
-    var amPmState by remember(hour) {
+    var amPmState by remember {
         mutableStateOf(if (isPm) "PM" else "AM")
     }
 
+    val hourFocusRequester = remember { FocusRequester() }
+    val minuteFocusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(Unit) {
+        delay(50)
+        hourFocusRequester.requestFocus()
+        keyboardController?.show()
+    }
 
     // Auto-detect when software keyboard is dismissed to exit back to scroll wheel
     val isImeVisible = WindowInsets.isImeVisible
@@ -400,15 +413,15 @@ fun DirectTimeInputRow(
         }
     }
 
-    fun applyDirectTime() {
-        val hParsed = hourText.filter { it.isDigit() }.toIntOrNull() ?: 0
-        val mParsed = minuteText.filter { it.isDigit() }.toIntOrNull() ?: 0
+    fun applyDirectTime(hStr: String, mStr: String, amPm: String) {
+        val hParsed = hStr.filter { it.isDigit() }.toIntOrNull() ?: 0
+        val mParsed = mStr.filter { it.isDigit() }.toIntOrNull() ?: 0
 
         val finalH = if (is24Hour) {
             hParsed.coerceIn(0, 23)
         } else {
-            val hCapped = hParsed.coerceIn(1, 12)
-            if (amPmState == "PM") {
+            val hCapped = if (hParsed in 1..12) hParsed else if (hParsed > 12) 12 else 12
+            if (amPm == "PM") {
                 if (hCapped == 12) 12 else hCapped + 12
             } else {
                 if (hCapped == 12) 0 else hCapped
@@ -425,17 +438,29 @@ fun DirectTimeInputRow(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Hours Input
         OutlinedTextField(
-            value = hourText,
-            onValueChange = {
-                val clean = it.filter { ch -> ch.isDigit() }.take(2)
-                hourText = clean
-                applyDirectTime()
+            value = hourField,
+            onValueChange = { newVal ->
+                val digitsOnly = newVal.text.filter { it.isDigit() }.take(2)
+                hourField = newVal.copy(text = digitsOnly, selection = TextRange(digitsOnly.length))
+                applyDirectTime(digitsOnly, minuteField.text, amPmState)
+
+                // Auto-advance to minutes when 2 digits typed or when typed 1st digit >= 2 in 12h / >= 3 in 24h
+                val num = digitsOnly.toIntOrNull() ?: 0
+                if (digitsOnly.length == 2 || (digitsOnly.length == 1 && (if (is24Hour) num >= 3 else num >= 2))) {
+                    minuteField = minuteField.copy(selection = TextRange(0, minuteField.text.length))
+                    minuteFocusRequester.requestFocus()
+                }
             },
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Next
             ),
+            keyboardActions = KeyboardActions(onNext = {
+                minuteField = minuteField.copy(selection = TextRange(0, minuteField.text.length))
+                minuteFocusRequester.requestFocus()
+            }),
             singleLine = true,
             textStyle = LocalTextStyle.current.copy(
                 fontSize = 28.sp,
@@ -443,7 +468,9 @@ fun DirectTimeInputRow(
                 color = OneUITextPrimary,
                 textAlign = TextAlign.Center
             ),
-            modifier = Modifier.width(76.dp),
+            modifier = Modifier
+                .width(76.dp)
+                .focusRequester(hourFocusRequester),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = OneUIBlue,
                 unfocusedBorderColor = OneUIDivider,
@@ -460,19 +487,20 @@ fun DirectTimeInputRow(
             modifier = Modifier.padding(horizontal = 8.dp)
         )
 
+        // Minutes Input
         OutlinedTextField(
-            value = minuteText,
-            onValueChange = {
-                val clean = it.filter { ch -> ch.isDigit() }.take(2)
-                minuteText = clean
-                applyDirectTime()
+            value = minuteField,
+            onValueChange = { newVal ->
+                val digitsOnly = newVal.text.filter { it.isDigit() }.take(2)
+                minuteField = newVal.copy(text = digitsOnly, selection = TextRange(digitsOnly.length))
+                applyDirectTime(hourField.text, digitsOnly, amPmState)
             },
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Done
             ),
             keyboardActions = KeyboardActions(onDone = {
-                applyDirectTime()
+                applyDirectTime(hourField.text, minuteField.text, amPmState)
                 focusManager.clearFocus()
                 keyboardController?.hide()
                 onDone()
@@ -484,7 +512,9 @@ fun DirectTimeInputRow(
                 color = OneUITextPrimary,
                 textAlign = TextAlign.Center
             ),
-            modifier = Modifier.width(76.dp),
+            modifier = Modifier
+                .width(76.dp)
+                .focusRequester(minuteFocusRequester),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = OneUIBlue,
                 unfocusedBorderColor = OneUIDivider,
@@ -504,7 +534,7 @@ fun DirectTimeInputRow(
                             .background(if (isSelected) OneUIBlue else OneUICardElevated)
                             .clickable {
                                 amPmState = period
-                                applyDirectTime()
+                                applyDirectTime(hourField.text, minuteField.text, period)
                             }
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                         contentAlignment = Alignment.Center
@@ -621,9 +651,13 @@ fun TimerWheelDurationPicker(
                 val minutesFocus = remember { FocusRequester() }
                 val secondsFocus = remember { FocusRequester() }
 
-                var hourStr by remember(hours) { mutableStateOf(if (hours == 0) "00" else String.format("%02d", hours)) }
-                var minStr by remember(minutes) { mutableStateOf(if (minutes == 0) "00" else String.format("%02d", minutes)) }
-                var secStr by remember(seconds) { mutableStateOf(if (seconds == 0) "00" else String.format("%02d", seconds)) }
+                val initH = if (hours == 0) "00" else String.format("%02d", hours)
+                val initM = if (minutes == 0) "00" else String.format("%02d", minutes)
+                val initS = if (seconds == 0) "00" else String.format("%02d", seconds)
+
+                var hourField by remember { mutableStateOf(TextFieldValue(initH, selection = TextRange(0, initH.length))) }
+                var minField by remember { mutableStateOf(TextFieldValue(initM, selection = TextRange(0, initM.length))) }
+                var secField by remember { mutableStateOf(TextFieldValue(initS, selection = TextRange(0, initS.length))) }
 
                 LaunchedEffect(Unit) {
                     delay(50)
@@ -635,10 +669,10 @@ fun TimerWheelDurationPicker(
                     keyboardController?.show()
                 }
 
-                fun applyValues() {
-                    val h = hourStr.filter { it.isDigit() }.toIntOrNull() ?: 0
-                    val m = minStr.filter { it.isDigit() }.toIntOrNull() ?: 0
-                    val s = secStr.filter { it.isDigit() }.toIntOrNull() ?: 0
+                fun applyValues(hStr: String, mStr: String, sStr: String) {
+                    val h = hStr.filter { it.isDigit() }.toIntOrNull() ?: 0
+                    val m = mStr.filter { it.isDigit() }.toIntOrNull() ?: 0
+                    val s = sStr.filter { it.isDigit() }.toIntOrNull() ?: 0
                     onDurationChange(h.coerceIn(0, 23), m.coerceIn(0, 59), s.coerceIn(0, 59))
                 }
 
@@ -652,15 +686,24 @@ fun TimerWheelDurationPicker(
                     // Hours Field
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         OutlinedTextField(
-                            value = hourStr,
-                            onValueChange = {
-                                hourStr = it.filter { ch -> ch.isDigit() }.take(2)
-                                applyValues()
+                            value = hourField,
+                            onValueChange = { newVal ->
+                                val clean = newVal.text.filter { ch -> ch.isDigit() }.take(2)
+                                hourField = newVal.copy(text = clean, selection = TextRange(clean.length))
+                                applyValues(clean, minField.text, secField.text)
+                                if (clean.length == 2 || (clean.length == 1 && (clean.toIntOrNull() ?: 0) >= 3)) {
+                                    minField = minField.copy(selection = TextRange(0, minField.text.length))
+                                    minutesFocus.requestFocus()
+                                }
                             },
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Number,
                                 imeAction = ImeAction.Next
                             ),
+                            keyboardActions = KeyboardActions(onNext = {
+                                minField = minField.copy(selection = TextRange(0, minField.text.length))
+                                minutesFocus.requestFocus()
+                            }),
                             singleLine = true,
                             textStyle = LocalTextStyle.current.copy(
                                 fontSize = 28.sp,
@@ -692,15 +735,24 @@ fun TimerWheelDurationPicker(
                     // Minutes Field
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         OutlinedTextField(
-                            value = minStr,
-                            onValueChange = {
-                                minStr = it.filter { ch -> ch.isDigit() }.take(2)
-                                applyValues()
+                            value = minField,
+                            onValueChange = { newVal ->
+                                val clean = newVal.text.filter { ch -> ch.isDigit() }.take(2)
+                                minField = newVal.copy(text = clean, selection = TextRange(clean.length))
+                                applyValues(hourField.text, clean, secField.text)
+                                if (clean.length == 2 || (clean.length == 1 && (clean.toIntOrNull() ?: 0) >= 6)) {
+                                    secField = secField.copy(selection = TextRange(0, secField.text.length))
+                                    secondsFocus.requestFocus()
+                                }
                             },
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Number,
                                 imeAction = ImeAction.Next
                             ),
+                            keyboardActions = KeyboardActions(onNext = {
+                                secField = secField.copy(selection = TextRange(0, secField.text.length))
+                                secondsFocus.requestFocus()
+                            }),
                             singleLine = true,
                             textStyle = LocalTextStyle.current.copy(
                                 fontSize = 28.sp,
@@ -732,17 +784,18 @@ fun TimerWheelDurationPicker(
                     // Seconds Field
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         OutlinedTextField(
-                            value = secStr,
-                            onValueChange = {
-                                secStr = it.filter { ch -> ch.isDigit() }.take(2)
-                                applyValues()
+                            value = secField,
+                            onValueChange = { newVal ->
+                                val clean = newVal.text.filter { ch -> ch.isDigit() }.take(2)
+                                secField = newVal.copy(text = clean, selection = TextRange(clean.length))
+                                applyValues(hourField.text, minField.text, clean)
                             },
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Number,
                                 imeAction = ImeAction.Done
                             ),
                             keyboardActions = KeyboardActions(onDone = {
-                                applyValues()
+                                applyValues(hourField.text, minField.text, secField.text)
                                 focusManager.clearFocus()
                                 keyboardController?.hide()
                                 isKeyboardMode = false
