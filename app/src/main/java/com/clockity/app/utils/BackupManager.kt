@@ -153,6 +153,7 @@ object BackupManager {
                 outputStream.write(rootJson.toString(2).toByteArray(Charsets.UTF_8))
             } ?: return@withContext Result.failure(Exception("Unable to open output stream"))
 
+            PreferencesManager.setLastBackupTimestamp(context, nowMillis)
             Result.success("Exported ${alarms.size} alarms across ${groups.size} groups, ${cities.size} cities, and ${presets.size} presets.")
         } catch (e: Exception) {
             Result.failure(e)

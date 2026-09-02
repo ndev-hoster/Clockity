@@ -26,15 +26,28 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.view.KeyEvent
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.clockity.app.service.AlarmReceiver
 import com.clockity.app.ui.theme.*
+import com.clockity.app.utils.PreferencesManager
 
 class AlarmRingingActivity : ComponentActivity() {
+
+    private var alarmId: Long = -1L
+    private var snoozeMinutes: Int = 5
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Wake and show over lock screen
+        // Wake screen, bypass keyguard, keep screen on
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
+        )
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
@@ -45,15 +58,19 @@ class AlarmRingingActivity : ComponentActivity() {
             window.addFlags(
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
                 WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
             )
         }
 
-        val alarmId = intent.getLongExtra(AlarmReceiver.EXTRA_ALARM_ID, -1L)
+        // Immersive full-screen (hide system bars)
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        insetsController.hide(WindowInsetsCompat.Type.systemBars())
+
+        alarmId = intent.getLongExtra(AlarmReceiver.EXTRA_ALARM_ID, -1L)
         val label = intent.getStringExtra(AlarmReceiver.EXTRA_ALARM_LABEL) ?: "Alarm"
         val timeStr = intent.getStringExtra(AlarmReceiver.EXTRA_ALARM_TIME) ?: "07:00 AM"
-        val snoozeMinutes = intent.getIntExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, 5)
+        snoozeMinutes = intent.getIntExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, 5)
 
         setContent {
             ClockityTheme {
@@ -61,26 +78,52 @@ class AlarmRingingActivity : ComponentActivity() {
                     timeStr = timeStr,
                     label = label,
                     snoozeMinutes = snoozeMinutes,
-                    onDismiss = {
-                        val dismissIntent = Intent(this, AlarmReceiver::class.java).apply {
-                            action = AlarmReceiver.ACTION_DISMISS_ALARM
-                            putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
-                        }
-                        sendBroadcast(dismissIntent)
-                        finish()
-                    },
-                    onSnooze = {
-                        val snoozeIntent = Intent(this, AlarmReceiver::class.java).apply {
-                            action = AlarmReceiver.ACTION_SNOOZE_ALARM
-                            putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
-                            putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
-                        }
-                        sendBroadcast(snoozeIntent)
-                        finish()
-                    }
+                    onDismiss = { dismissAlarm() },
+                    onSnooze = { snoozeAlarm() }
                 )
             }
         }
+    }
+
+    private fun dismissAlarm() {
+        val dismissIntent = Intent(this, AlarmReceiver::class.java).apply {
+            action = AlarmReceiver.ACTION_DISMISS_ALARM
+            putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+        }
+        sendBroadcast(dismissIntent)
+        finish()
+    }
+
+    private fun snoozeAlarm() {
+        if (snoozeMinutes > 0) {
+            val snoozeIntent = Intent(this, AlarmReceiver::class.java).apply {
+                action = AlarmReceiver.ACTION_SNOOZE_ALARM
+                putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+                putExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
+            }
+            sendBroadcast(snoozeIntent)
+        } else {
+            dismissAlarm()
+        }
+        finish()
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+            val behavior = PreferencesManager.getVolumeKeyBehavior(this)
+            when (behavior) {
+                "Snooze" -> {
+                    snoozeAlarm()
+                    return true
+                }
+                "Dismiss" -> {
+                    dismissAlarm()
+                    return true
+                }
+                else -> return super.onKeyDown(keyCode, event)
+            }
+        }
+        return super.onKeyDown(keyCode, event)
     }
 }
 

@@ -59,6 +59,9 @@ fun EditAlarmDialog(
     var selectedGroupId by remember { mutableStateOf(alarm?.groupId ?: initialGroupId) }
     var isGentleWake by remember { mutableStateOf(alarm?.isGentleWakeUp ?: true) }
     var snoozeMinutes by remember { mutableStateOf(alarm?.snoozeDurationMinutes ?: 5) }
+    var snoozeRepeatCount by remember { mutableIntStateOf(alarm?.snoozeRepeatCount ?: 3) }
+    var showCustomRepeatDialog by remember { mutableStateOf(false) }
+    var customRepeatInput by remember { mutableStateOf(snoozeRepeatCount.toString()) }
     var vibrationPattern by remember { mutableStateOf(alarm?.vibrationPattern ?: "Basic") }
 
     val daysLabels = listOf("M", "T", "W", "T", "F", "S", "S")
@@ -380,6 +383,81 @@ fun EditAlarmDialog(
                         }
                     }
 
+                    // Snooze Repeat Count [1, 5, 10, never, custom]
+                    if (snoozeMinutes > 0) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(OneUICardElevated)
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Repeat Count",
+                                fontSize = 15.sp,
+                                color = OneUITextPrimary,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f, fill = false)
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val standardOptions = listOf(1 to "1x", 5 to "5x", 10 to "10x", 0 to "Never")
+                                val isStandard = standardOptions.any { it.first == snoozeRepeatCount }
+
+                                standardOptions.forEach { (count, text) ->
+                                    val isSelected = snoozeRepeatCount == count
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (isSelected) OneUIBlue else OneUIDivider)
+                                            .clickable { snoozeRepeatCount = count }
+                                            .padding(horizontal = 9.dp, vertical = 6.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = text,
+                                            color = if (isSelected) OneUIBlack else OneUITextPrimary,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
+                                }
+
+                                // Custom option chip
+                                val isCustom = !isStandard && snoozeRepeatCount > 0
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isCustom) OneUIBlue else OneUIDivider)
+                                        .clickable {
+                                            customRepeatInput = if (snoozeRepeatCount > 0) snoozeRepeatCount.toString() else "3"
+                                            showCustomRepeatDialog = true
+                                        }
+                                        .padding(horizontal = 9.dp, vertical = 6.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (isCustom) "${snoozeRepeatCount}x" else "Custom",
+                                        color = if (isCustom) OneUIBlack else OneUITextPrimary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // Vibration Pattern
@@ -456,6 +534,7 @@ fun EditAlarmDialog(
                                 groupId = selectedGroupId,
                                 isGentleWakeUp = isGentleWake,
                                 snoozeDurationMinutes = snoozeMinutes,
+                                snoozeRepeatCount = snoozeRepeatCount,
                                 vibrationPattern = vibrationPattern,
                                 isEnabled = true
                             )
@@ -523,5 +602,70 @@ fun EditAlarmDialog(
                 )
             )
         }
+    }
+
+    // Custom Snooze Repeat Count Dialog
+    if (showCustomRepeatDialog) {
+        AlertDialog(
+            onDismissRequest = { showCustomRepeatDialog = false },
+            title = {
+                Text(
+                    text = "Custom Snooze Repeat",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = OneUITextPrimary
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Enter how many times the alarm can be snoozed before stopping:",
+                        fontSize = 13.sp,
+                        color = OneUITextSecondary,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    OutlinedTextField(
+                        value = customRepeatInput,
+                        onValueChange = { input ->
+                            if (input.all { it.isDigit() } && input.length <= 3) {
+                                customRepeatInput = input
+                            }
+                        },
+                        singleLine = true,
+                        placeholder = { Text("e.g. 5", color = OneUITextTertiary) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = OneUIBlue,
+                            unfocusedBorderColor = OneUIDivider,
+                            focusedTextColor = OneUITextPrimary,
+                            unfocusedTextColor = OneUITextPrimary
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val parsed = customRepeatInput.toIntOrNull() ?: 3
+                        snoozeRepeatCount = if (parsed < 1) 1 else parsed
+                        showCustomRepeatDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = OneUIBlue,
+                        contentColor = OneUIBlack
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Apply", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomRepeatDialog = false }) {
+                    Text("Cancel", color = OneUITextSecondary)
+                }
+            },
+            containerColor = OneUICardElevated,
+            shape = RoundedCornerShape(24.dp)
+        )
     }
 }

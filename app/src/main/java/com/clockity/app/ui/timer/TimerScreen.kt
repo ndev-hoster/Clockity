@@ -27,12 +27,16 @@ import com.clockity.app.ui.components.OneUIHeader
 import com.clockity.app.ui.components.TimerWheelDurationPicker
 import com.clockity.app.ui.theme.*
 
+import androidx.compose.animation.core.*
+import com.clockity.app.utils.PreferencesManager
+
 @Composable
 fun TimerScreen(
     viewModel: TimerViewModel,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isTimerFlashEnabled by PreferencesManager.isTimerFlashEnabled.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Standard Timers, 1 = Pomodoro Focus
 
@@ -44,21 +48,49 @@ fun TimerScreen(
     var editingPreset by remember { mutableStateOf<TimerPreset?>(null) }
 
     val activeCount = uiState.activeTimers.count { it.isRunning }
+    val isRinging = uiState.ringingTimer != null
 
-    Column(
+    val infiniteTransition = rememberInfiniteTransition(label = "timer_flash")
+    val flashAlpha by if (isRinging && isTimerFlashEnabled) {
+        infiniteTransition.animateFloat(
+            initialValue = 0.05f,
+            targetValue = 0.40f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(500, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "flash_alpha"
+        )
+    } else {
+        remember { mutableFloatStateOf(0f) }
+    }
+
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(OneUIBlack)
     ) {
-        // One UI Header
-        OneUIHeader(
-            title = if (selectedTab == 0) "Timer" else "Focus",
-            subtitle = if (selectedTab == 0) {
-                if (activeCount > 0) "$activeCount timer${if (activeCount > 1) "s" else ""} running" else "Set duration"
-            } else {
-                "${uiState.pomodoroState.completedSessionsToday} sessions completed today"
-            }
-        )
+        // Optional screen edge flash glow on timer finish
+        if (isRinging && isTimerFlashEnabled && flashAlpha > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(OneUIRed.copy(alpha = flashAlpha))
+            )
+        }
+
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // One UI Header
+            OneUIHeader(
+                title = if (selectedTab == 0) "Timer" else "Focus",
+                subtitle = if (selectedTab == 0) {
+                    if (activeCount > 0) "$activeCount timer${if (activeCount > 1) "s" else ""} running" else "Set duration"
+                } else {
+                    "${uiState.pomodoroState.completedSessionsToday} sessions completed today"
+                }
+            )
 
         // Ringing Alert Banner if any timer reached zero
         AnimatedVisibility(visible = uiState.ringingTimer != null) {
@@ -521,29 +553,30 @@ fun TimerScreen(
                 }
             }
         }
-    }
 
-    if (showAddPresetDialog) {
-        AddPresetDialog(
-            onDismiss = { showAddPresetDialog = false },
-            onSave = { title, secs ->
-                viewModel.addPreset(title, secs)
-            }
-        )
-    }
+        if (showAddPresetDialog) {
+            AddPresetDialog(
+                onDismiss = { showAddPresetDialog = false },
+                onSave = { title, secs ->
+                    viewModel.addPreset(title, secs)
+                }
+            )
+        }
 
-    editingPreset?.let { preset ->
-        EditPresetDialog(
-            preset = preset,
-            onDismiss = { editingPreset = null },
-            onSave = { updated ->
-                viewModel.updatePreset(updated)
-                editingPreset = null
-            },
-            onDelete = { toDelete ->
-                viewModel.deletePreset(toDelete)
-                editingPreset = null
-            }
-        )
+        editingPreset?.let { preset ->
+            EditPresetDialog(
+                preset = preset,
+                onDismiss = { editingPreset = null },
+                onSave = { updated ->
+                    viewModel.updatePreset(updated)
+                    editingPreset = null
+                },
+                onDelete = { toDelete ->
+                    viewModel.deletePreset(toDelete)
+                    editingPreset = null
+                }
+            )
+        }
     }
+}
 }

@@ -9,6 +9,7 @@ import com.clockity.app.data.models.Alarm
 import com.clockity.app.data.models.AlarmGroup
 import com.clockity.app.data.models.TimerPreset
 import com.clockity.app.data.models.WorldCity
+import com.clockity.app.utils.AlarmScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -62,7 +63,18 @@ abstract class ClockityDatabase : RoomDatabase() {
             }
         }
 
-        private suspend fun populateInitialData(db: ClockityDatabase) {
+        suspend fun resetToFactoryDefaults(context: Context) = kotlinx.coroutines.withContext(Dispatchers.IO) {
+            val db = getDatabase(context)
+            val alarms = db.alarmDao().getAllAlarmsSync()
+            alarms.forEach { AlarmScheduler.cancelAlarm(context, it.id) }
+            db.alarmDao().deleteAll()
+            db.alarmGroupDao().deleteAll()
+            db.worldClockDao().deleteAll()
+            db.timerPresetDao().deleteAll()
+            populateInitialData(db)
+        }
+
+        suspend fun populateInitialData(db: ClockityDatabase) {
             val groupDao = db.alarmGroupDao()
             val alarmDao = db.alarmDao()
             val worldClockDao = db.worldClockDao()
