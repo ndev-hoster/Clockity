@@ -39,7 +39,9 @@ fun AlarmGroupCard(
     onEditGroup: () -> Unit,
     onDeleteGroup: () -> Unit,
     modifier: Modifier = Modifier,
-    onLongClickAlarm: ((Alarm) -> Unit)? = null
+    onLongClickAlarm: ((Alarm) -> Unit)? = null,
+    isSelectionMode: Boolean = false,
+    selectedAlarmIds: Set<Long> = emptySet()
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val arrowRotation by animateFloatAsState(
@@ -176,6 +178,8 @@ fun AlarmGroupCard(
                             onDelete = { onDeleteAlarm(alarm) },
                             isInsideGroup = true,
                             onLongClick = { onLongClickAlarm?.invoke(alarm) },
+                            isSelectionMode = isSelectionMode,
+                            isSelected = selectedAlarmIds.contains(alarm.id),
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }

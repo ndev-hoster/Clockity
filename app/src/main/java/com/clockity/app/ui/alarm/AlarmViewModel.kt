@@ -182,8 +182,30 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteGroup(group: AlarmGroup) {
         viewModelScope.launch(Dispatchers.IO) {
-            alarmDao.unassignAlarmsFromGroup(group.id)
+            val memberAlarms = alarmDao.getAlarmsByGroupId(group.id)
+            memberAlarms.forEach { alarm ->
+                AlarmScheduler.cancelAlarm(getApplication(), alarm.id)
+            }
+            alarmDao.deleteAlarmsByGroupId(group.id)
             groupDao.deleteGroup(group)
+        }
+    }
+
+    fun deleteAlarms(alarms: List<Alarm>) {
+        if (alarms.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            alarms.forEach { alarm ->
+                AlarmScheduler.cancelAlarm(getApplication(), alarm.id)
+            }
+            alarmDao.deleteAlarms(alarms)
+        }
+    }
+
+    fun moveAlarmsToGroup(alarms: List<Alarm>, targetGroupId: Long?) {
+        if (alarms.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val alarmIds = alarms.map { it.id }
+            alarmDao.moveAlarmsToGroup(alarmIds, targetGroupId)
         }
     }
 }

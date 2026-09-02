@@ -27,4 +27,7 @@ interface WorldClockDao {
 
     @Query("DELETE FROM world_cities WHERE id = :id")
     suspend fun deleteCityById(id: Long)
+
+    @Query("DELETE FROM world_cities")
+    suspend fun deleteAll()
 }

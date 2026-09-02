@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,7 +39,9 @@ fun AlarmItemCard(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
     isInsideGroup: Boolean = false,
-    onLongClick: (() -> Unit)? = null
+    onLongClick: (() -> Unit)? = null,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false
 ) {
     val (timeStr, amPm) = alarm.formatTime12H()
     val textColor by animateColorAsState(
@@ -54,7 +57,11 @@ fun AlarmItemCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(if (isInsideGroup) 16.dp else 24.dp))
-            .background(if (isInsideGroup) OneUICardElevated else OneUICardDark)
+            .background(
+                if (isSelected) OneUIBlue.copy(alpha = 0.18f)
+                else if (isInsideGroup) OneUICardElevated
+                else OneUICardDark
+            )
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
@@ -62,6 +69,26 @@ fun AlarmItemCard(
             .padding(horizontal = 20.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (isSelectionMode) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(if (isSelected) OneUIBlue else OneUIDivider),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Selected",
+                        tint = OneUIBlack,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+        }
+
         // Time & Details
         Column(
             modifier = Modifier.weight(1f)
@@ -136,11 +163,13 @@ fun AlarmItemCard(
             }
         }
 
-        // Toggle Switch
-        OneUISwitch(
-            checked = alarm.isEnabled,
-            onCheckedChange = { onToggle() },
-            checkedTrackColor = OneUIBlue
-        )
+        if (!isSelectionMode) {
+            // Toggle Switch
+            OneUISwitch(
+                checked = alarm.isEnabled,
+                onCheckedChange = { onToggle() },
+                checkedTrackColor = OneUIBlue
+            )
+        }
     }
 }

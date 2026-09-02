@@ -27,4 +27,7 @@ interface TimerPresetDao {
 
     @Delete
     suspend fun deletePreset(preset: TimerPreset)
+
+    @Query("DELETE FROM timer_presets")
+    suspend fun deleteAll()
 }

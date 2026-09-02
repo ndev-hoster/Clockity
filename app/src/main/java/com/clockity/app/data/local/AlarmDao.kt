@@ -39,4 +39,16 @@ interface AlarmDao {
 
     @Query("UPDATE alarms SET groupId = NULL WHERE groupId = :groupId")
     suspend fun unassignAlarmsFromGroup(groupId: Long)
+
+    @Query("DELETE FROM alarms WHERE groupId = :groupId")
+    suspend fun deleteAlarmsByGroupId(groupId: Long)
+
+    @Delete
+    suspend fun deleteAlarms(alarms: List<Alarm>)
+
+    @Query("DELETE FROM alarms")
+    suspend fun deleteAll()
+
+    @Query("UPDATE alarms SET groupId = :targetGroupId WHERE id IN (:alarmIds)")
+    suspend fun moveAlarmsToGroup(alarmIds: List<Long>, targetGroupId: Long?)
 }

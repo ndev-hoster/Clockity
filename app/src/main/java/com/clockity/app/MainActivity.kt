@@ -16,9 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.clockity.app.ui.alarm.AlarmScreen
 import com.clockity.app.ui.alarm.AlarmViewModel
-import com.clockity.app.ui.components.BackupDialog
 import com.clockity.app.ui.components.ClockTab
 import com.clockity.app.ui.components.OneUIBottomBar
+import com.clockity.app.ui.settings.SettingsScreen
 import com.clockity.app.ui.stopwatch.StopwatchScreen
 import com.clockity.app.ui.stopwatch.StopwatchViewModel
 import com.clockity.app.ui.theme.*
@@ -73,8 +73,8 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIntent(intent: Intent?) {
         val tabIndex = intent?.getIntExtra("open_tab", -1) ?: -1
-        if (tabIndex in 0..3) {
-            initialTab = ClockTab.values()[tabIndex]
+        if (tabIndex in 0 until ClockTab.entries.size) {
+            initialTab = ClockTab.entries[tabIndex]
         } else {
             val hasActiveTimers = TimerManager.activeTimers.value.any { it.isRunning || it.isPaused } ||
                     TimerManager.pomodoroState.value.isRunning ||
@@ -95,7 +95,6 @@ fun MainAppScreen(
     initialTab: ClockTab = ClockTab.ALARM
 ) {
     var currentTab by remember { mutableStateOf(initialTab) }
-    var showBackupDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(initialTab) {
         currentTab = initialTab
@@ -116,21 +115,12 @@ fun MainAppScreen(
                 .padding(innerPadding)
         ) {
             when (currentTab) {
-                ClockTab.ALARM -> AlarmScreen(
-                    viewModel = alarmViewModel,
-                    onOpenBackup = { showBackupDialog = true }
-                )
-                ClockTab.WORLD_CLOCK -> WorldClockScreen(
-                    viewModel = worldClockViewModel,
-                    onOpenBackup = { showBackupDialog = true }
-                )
+                ClockTab.ALARM -> AlarmScreen(viewModel = alarmViewModel)
+                ClockTab.WORLD_CLOCK -> WorldClockScreen(viewModel = worldClockViewModel)
                 ClockTab.STOPWATCH -> StopwatchScreen(viewModel = stopwatchViewModel)
                 ClockTab.TIMER -> TimerScreen(viewModel = timerViewModel)
+                ClockTab.SETTINGS -> SettingsScreen()
             }
         }
-    }
-
-    if (showBackupDialog) {
-        BackupDialog(onDismiss = { showBackupDialog = false })
     }
 }

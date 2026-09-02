@@ -30,4 +30,7 @@ interface AlarmGroupDao {
 
     @Query("UPDATE alarm_groups SET isExpanded = :isExpanded WHERE id = :id")
     suspend fun setGroupExpanded(id: Long, isExpanded: Boolean)
+
+    @Query("DELETE FROM alarm_groups")
+    suspend fun deleteAll()
 }

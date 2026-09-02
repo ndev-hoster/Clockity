@@ -3,6 +3,7 @@ package com.clockity.app.ui.alarm
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -266,13 +267,16 @@ fun EditAlarmDialog(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             FilterChip(
                                 selected = selectedGroupId == null,
                                 onClick = { selectedGroupId = null },
-                                label = { Text("No Group") },
+                                label = { Text("No Group", maxLines = 1, softWrap = false) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = OneUIBlue,
                                     selectedLabelColor = OneUIBlack,
@@ -284,7 +288,7 @@ fun EditAlarmDialog(
                                 FilterChip(
                                     selected = selectedGroupId == group.id,
                                     onClick = { selectedGroupId = group.id },
-                                    label = { Text(group.name) },
+                                    label = { Text(group.name, maxLines = 1, softWrap = false) },
                                     colors = FilterChipDefaults.filterChipColors(
                                         selectedContainerColor = OneUIBlue,
                                         selectedLabelColor = OneUIBlack,
@@ -308,7 +312,7 @@ fun EditAlarmDialog(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f, fill = false)) {
                             Text(
                                 text = "Gentle wake-up",
                                 fontSize = 15.sp,
@@ -343,9 +347,16 @@ fun EditAlarmDialog(
                         Text(
                             text = "Snooze",
                             fontSize = 15.sp,
-                            color = OneUITextPrimary
+                            color = OneUITextPrimary,
+                            modifier = Modifier.padding(end = 8.dp)
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             listOf(0 to "Off", 5 to "5m", 10 to "10m", 15 to "15m", 30 to "30m").forEach { (mins, text) ->
                                 val isSelected = snoozeMinutes == mins
                                 Box(
@@ -353,13 +364,16 @@ fun EditAlarmDialog(
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(if (isSelected) OneUIBlue else OneUIDivider)
                                         .clickable { snoozeMinutes = mins }
-                                        .padding(horizontal = 9.dp, vertical = 6.dp)
+                                        .padding(horizontal = 9.dp, vertical = 6.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         text = text,
                                         color = if (isSelected) OneUIBlack else OneUITextPrimary,
                                         fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
                                 }
                             }
@@ -381,9 +395,16 @@ fun EditAlarmDialog(
                         Text(
                             text = "Vibration",
                             fontSize = 15.sp,
-                            color = OneUITextPrimary
+                            color = OneUITextPrimary,
+                            modifier = Modifier.padding(end = 8.dp)
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             listOf("Basic", "Heartbeat", "Tick-tock", "Rapid").forEach { pattern ->
                                 val isSelected = vibrationPattern == pattern
                                 Box(
@@ -391,13 +412,16 @@ fun EditAlarmDialog(
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(if (isSelected) OneUIBlue else OneUIDivider)
                                         .clickable { vibrationPattern = pattern }
-                                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         text = pattern,
                                         color = if (isSelected) OneUIBlack else OneUITextPrimary,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
                                 }
                             }
