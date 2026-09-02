@@ -2,6 +2,7 @@ package com.clockity.app.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -39,16 +40,17 @@ fun OneUIHeader(
         // Top Action Row
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
+            horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.End),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (onAddClick != null) {
-                IconButton(
-                    onClick = onAddClick,
+                Box(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
                         .background(OneUICardElevated)
+                        .clickable { onAddClick() },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
@@ -57,16 +59,16 @@ fun OneUIHeader(
                         modifier = Modifier.size(18.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(16.dp))
             }
 
             if (onMenuClick != null) {
-                IconButton(
-                    onClick = onMenuClick,
+                Box(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
                         .background(OneUICardElevated)
+                        .clickable { onMenuClick() },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,

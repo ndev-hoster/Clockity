@@ -31,6 +31,7 @@ import com.clockity.app.ui.components.AlarmWheelTimePicker
 import com.clockity.app.ui.components.OneUISwitch
 import com.clockity.app.ui.theme.*
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -45,8 +46,9 @@ fun EditAlarmDialog(
     onDelete: ((Alarm) -> Unit)? = null
 ) {
     val isNew = alarm == null
-    var selectedHour by remember { mutableIntStateOf(alarm?.hour ?: 7) }
-    var selectedMinute by remember { mutableIntStateOf(alarm?.minute ?: 0) }
+    val currentCal = remember { Calendar.getInstance() }
+    var selectedHour by remember { mutableIntStateOf(alarm?.hour ?: currentCal.get(Calendar.HOUR_OF_DAY)) }
+    var selectedMinute by remember { mutableIntStateOf(alarm?.minute ?: currentCal.get(Calendar.MINUTE)) }
 
     var label by remember { mutableStateOf(alarm?.label ?: "") }
     var daysOfWeek by remember { mutableStateOf(alarm?.daysOfWeek ?: 0) }
