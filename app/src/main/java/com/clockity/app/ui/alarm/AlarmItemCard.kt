@@ -26,6 +26,10 @@ import com.clockity.app.data.models.Alarm
 import com.clockity.app.ui.components.OneUISwitch
 import com.clockity.app.ui.theme.*
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AlarmItemCard(
     alarm: Alarm,
@@ -33,7 +37,8 @@ fun AlarmItemCard(
     onClick: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
-    isInsideGroup: Boolean = false
+    isInsideGroup: Boolean = false,
+    onLongClick: (() -> Unit)? = null
 ) {
     val (timeStr, amPm) = alarm.formatTime12H()
     val textColor by animateColorAsState(
@@ -50,7 +55,10 @@ fun AlarmItemCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(if (isInsideGroup) 16.dp else 24.dp))
             .background(if (isInsideGroup) OneUICardElevated else OneUICardDark)
-            .clickable { onClick() }
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(horizontal = 20.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

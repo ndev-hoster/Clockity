@@ -46,31 +46,33 @@ fun OneUIHeader(
                 IconButton(
                     onClick = onAddClick,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                         .background(OneUICardElevated)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = "Add",
-                        tint = OneUITextPrimary
+                        tint = OneUITextPrimary,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(16.dp))
             }
 
             if (onMenuClick != null) {
                 IconButton(
                     onClick = onMenuClick,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                         .background(OneUICardElevated)
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = "More",
-                        tint = OneUITextPrimary
+                        tint = OneUITextPrimary,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }

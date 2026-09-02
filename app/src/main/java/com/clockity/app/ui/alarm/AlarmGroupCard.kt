@@ -38,7 +38,8 @@ fun AlarmGroupCard(
     onAddAlarmToGroup: () -> Unit,
     onEditGroup: () -> Unit,
     onDeleteGroup: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLongClickAlarm: ((Alarm) -> Unit)? = null
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val arrowRotation by animateFloatAsState(
@@ -174,6 +175,7 @@ fun AlarmGroupCard(
                             onClick = { onAlarmClick(alarm) },
                             onDelete = { onDeleteAlarm(alarm) },
                             isInsideGroup = true,
+                            onLongClick = { onLongClickAlarm?.invoke(alarm) },
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }

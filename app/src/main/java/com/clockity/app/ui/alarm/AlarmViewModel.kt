@@ -144,6 +144,13 @@ class AlarmViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun moveAlarmToGroup(alarm: Alarm, targetGroupId: Long?) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val updated = alarm.copy(groupId = targetGroupId)
+            alarmDao.updateAlarm(updated)
+        }
+    }
+
     fun createGroup(name: String, colorHex: String = "#3E82F7") {
         val cleanName = name.trim()
         if (cleanName.isBlank()) return
