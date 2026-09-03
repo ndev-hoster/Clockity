@@ -37,32 +37,50 @@ class AlarmReceiver : BroadcastReceiver() {
 
         when (intent.action) {
             ACTION_TRIGGER_ALARM -> {
+                android.util.Log.d("AlarmReceiver", "Triggering alarm #$alarmId ($label at $timeStr)")
+
                 // 1. Dismiss any upcoming notification if still hanging
-                NotificationHelper.cancelUpcomingAlarmNotification(context, alarmId)
+                try {
+                    NotificationHelper.cancelUpcomingAlarmNotification(context, alarmId)
+                } catch (_: Exception) {}
 
                 // 2. Start Foreground Alarm Service (audio + vibration)
-                val serviceIntent = Intent(context, AlarmService::class.java).apply {
-                    putExtra(EXTRA_ALARM_ID, alarmId)
-                    putExtra(EXTRA_ALARM_LABEL, label)
-                    putExtra(EXTRA_ALARM_TIME, timeStr)
-                    putExtra(EXTRA_GENTLE_WAKE, isGentleWake)
-                    putExtra(EXTRA_VIBRATION_PATTERN, vibrationPattern)
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(serviceIntent)
-                } else {
-                    context.startService(serviceIntent)
+                try {
+                    val serviceIntent = Intent(context, AlarmService::class.java).apply {
+                        putExtra(EXTRA_ALARM_ID, alarmId)
+                        putExtra(EXTRA_ALARM_LABEL, label)
+                        putExtra(EXTRA_ALARM_TIME, timeStr)
+                        putExtra(EXTRA_GENTLE_WAKE, isGentleWake)
+                        putExtra(EXTRA_VIBRATION_PATTERN, vibrationPattern)
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(serviceIntent)
+                    } else {
+                        context.startService(serviceIntent)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("AlarmReceiver", "Failed to start AlarmService, falling back to direct audio", e)
+                    try {
+                        com.clockity.app.utils.SoundUtils.playAlarm(context, isGentleWake)
+                        com.clockity.app.utils.VibrationUtils.startVibration(context, vibrationPattern)
+                    } catch (_: Exception) {}
                 }
 
                 // 3. Launch Fullscreen Ringing Activity
-                val ringingIntent = Intent(context, AlarmRingingActivity::class.java).apply {
-                    putExtra(EXTRA_ALARM_ID, alarmId)
-                    putExtra(EXTRA_ALARM_LABEL, label)
-                    putExtra(EXTRA_ALARM_TIME, timeStr)
-                    putExtra(EXTRA_SNOOZE_MINUTES, snoozeMinutes)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                try {
+                    val ringingIntent = Intent(context, AlarmRingingActivity::class.java).apply {
+                        putExtra(EXTRA_ALARM_ID, alarmId)
+                        putExtra(EXTRA_ALARM_LABEL, label)
+                        putExtra(EXTRA_ALARM_TIME, timeStr)
+                        putExtra(EXTRA_SNOOZE_MINUTES, snoozeMinutes)
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                                Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    }
+                    context.startActivity(ringingIntent)
+                } catch (e: Exception) {
+                    android.util.Log.e("AlarmReceiver", "Failed to start AlarmRingingActivity directly", e)
                 }
-                context.startActivity(ringingIntent)
             }
 
             ACTION_DISMISS_ALARM -> {

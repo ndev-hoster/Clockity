@@ -12,7 +12,7 @@ object TimeUtils {
         val now = Calendar.getInstance()
 
         // 1. Specific Calendar Date Alarm
-        if (alarm.specificDateMillis != null) {
+        if (alarm.specificDateMillis != null && alarm.specificDateMillis > 0) {
             val dateCal = Calendar.getInstance().apply {
                 timeInMillis = alarm.specificDateMillis
             }

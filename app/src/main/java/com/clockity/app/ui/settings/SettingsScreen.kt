@@ -627,7 +627,7 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(text = "Version", fontSize = 15.sp, color = OneUITextPrimary)
-                            Text(text = "1.6.2", fontSize = 15.sp, color = OneUITextSecondary)
+                            Text(text = "1.6.3", fontSize = 15.sp, color = OneUITextSecondary)
                         }
 
                         HorizontalDivider(color = OneUIDivider, thickness = 0.5.dp)

@@ -42,32 +42,39 @@ object AlarmScheduler {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // 3. Set exact alarm with idle wake capability
+        // 3. Set exact alarm using setAlarmClock (high priority, exempt from Doze and background restrictions)
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        triggerMillis,
-                        pendingIntent
-                    )
-                } else {
+            val showIntent = Intent(context, com.clockity.app.MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val showPendingIntent = PendingIntent.getActivity(
+                context,
+                alarm.id.toInt(),
+                showIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerMillis, showPendingIntent)
+            alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+            Log.d(TAG, "Scheduled alarm #${alarm.id} with setAlarmClock for $triggerMillis")
+        } catch (e: Exception) {
+            Log.w(TAG, "setAlarmClock failed, falling back to setExactAndAllowWhileIdle", e)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
                     alarmManager.setAndAllowWhileIdle(
                         AlarmManager.RTC_WAKEUP,
                         triggerMillis,
                         pendingIntent
                     )
+                } else {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerMillis,
+                        pendingIntent
+                    )
                 }
-            } else {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerMillis,
-                    pendingIntent
-                )
+            } catch (e2: Exception) {
+                Log.e(TAG, "Failed to schedule alarm", e2)
             }
-            Log.d(TAG, "Scheduled alarm #${alarm.id} for $triggerMillis")
-        } catch (e: SecurityException) {
-            Log.e(TAG, "SecurityException scheduling exact alarm", e)
         }
 
         // 4. Schedule Upcoming Notification (30 mins before if in the future)
@@ -113,11 +120,23 @@ object AlarmScheduler {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
-            snoozeMillis,
-            pendingIntent
-        )
+        try {
+            val showIntent = Intent(context, com.clockity.app.MainActivity::class.java)
+            val showPendingIntent = PendingIntent.getActivity(
+                context,
+                alarmId.toInt(),
+                showIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val alarmClockInfo = AlarmManager.AlarmClockInfo(snoozeMillis, showPendingIntent)
+            alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+        } catch (e: Exception) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                snoozeMillis,
+                pendingIntent
+            )
+        }
     }
 
     fun cancelAlarm(context: Context, alarmId: Long) {
