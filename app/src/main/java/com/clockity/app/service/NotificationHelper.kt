@@ -21,11 +21,13 @@ object NotificationHelper {
     const val UPCOMING_CHANNEL_ID = "clockity_upcoming_channel"
     const val TIMER_CHANNEL_ID = "clockity_timer_channel"
     const val TIMER_RING_CHANNEL_ID = "clockity_timer_ring_channel"
+    const val MISSED_ALARM_CHANNEL_ID = "clockity_missed_alarm_channel"
 
     const val NOTIFICATION_ID_ALARM = 1001
     const val NOTIFICATION_ID_UPCOMING_BASE = 2000
     const val NOTIFICATION_ID_TIMER = 3001
     const val NOTIFICATION_ID_TIMER_FINISHED = 3002
+    const val NOTIFICATION_ID_MISSED_BASE = 4000
 
     fun createNotificationChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -55,6 +57,18 @@ object NotificationHelper {
                 setShowBadge(false)
             }
 
+            // Missed Alarm Channel
+            val missedChannel = NotificationChannel(
+                MISSED_ALARM_CHANNEL_ID,
+                context.getString(R.string.missed_alarm_channel_name),
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = context.getString(R.string.missed_alarm_channel_desc)
+                enableLights(true)
+                enableVibration(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+
             // Running Timer Channel
             val timerChannel = NotificationChannel(
                 TIMER_CHANNEL_ID,
@@ -78,7 +92,7 @@ object NotificationHelper {
                 setBypassDnd(true)
             }
 
-            manager.createNotificationChannels(listOf(alarmChannel, upcomingChannel, timerChannel, timerRingChannel))
+            manager.createNotificationChannels(listOf(alarmChannel, upcomingChannel, missedChannel, timerChannel, timerRingChannel))
         }
     }
 
@@ -311,6 +325,19 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Quick Snooze (5 mins) PendingIntent
+        val snoozeIntent = Intent(context, UpcomingAlarmReceiver::class.java).apply {
+            action = UpcomingAlarmReceiver.ACTION_SNOOZE_UPCOMING
+            putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarm.id)
+            putExtra(AlarmReceiver.EXTRA_ALARM_LABEL, alarm.label)
+        }
+        val snoozePendingIntent = PendingIntent.getBroadcast(
+            context,
+            (NOTIFICATION_ID_UPCOMING_BASE + alarm.id + 1000).toInt(),
+            snoozeIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         // Quick Dismiss PendingIntent
         val dismissIntent = Intent(context, UpcomingAlarmReceiver::class.java).apply {
             action = UpcomingAlarmReceiver.ACTION_DISMISS_UPCOMING
@@ -331,6 +358,7 @@ object NotificationHelper {
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setContentIntent(openAppPendingIntent)
             .setAutoCancel(true)
+            .addAction(android.R.drawable.ic_popup_reminder, "Snooze (5m)", snoozePendingIntent)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Dismiss Now", dismissPendingIntent)
             .build()
 
@@ -341,5 +369,49 @@ object NotificationHelper {
     fun cancelUpcomingAlarmNotification(context: Context, alarmId: Long) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.cancel((NOTIFICATION_ID_UPCOMING_BASE + alarmId).toInt())
+    }
+
+    fun showMissedAlarmNotification(context: Context, alarmId: Long, label: String, timeStr: String) {
+        val openAppIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("open_tab", 0) // Alarm tab
+        }
+        val openAppPendingIntent = PendingIntent.getActivity(
+            context,
+            (NOTIFICATION_ID_MISSED_BASE + alarmId).toInt(),
+            openAppIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val dismissIntent = Intent(context, AlarmReceiver::class.java).apply {
+            action = AlarmReceiver.ACTION_DISMISS_MISSED_NOTIFICATION
+            putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+        }
+        val dismissPendingIntent = PendingIntent.getBroadcast(
+            context,
+            (NOTIFICATION_ID_MISSED_BASE + alarmId + 500).toInt(),
+            dismissIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, MISSED_ALARM_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle("Missed alarm")
+            .setContentText(if (label.isNotBlank()) "$timeStr • $label" else timeStr)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setContentIntent(openAppPendingIntent)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Dismiss", dismissPendingIntent)
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify((NOTIFICATION_ID_MISSED_BASE + alarmId).toInt(), notification)
+    }
+
+    fun cancelMissedAlarmNotification(context: Context, alarmId: Long) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancel((NOTIFICATION_ID_MISSED_BASE + alarmId).toInt())
     }
 }

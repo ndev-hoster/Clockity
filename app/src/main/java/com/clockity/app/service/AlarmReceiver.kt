@@ -17,6 +17,7 @@ class AlarmReceiver : BroadcastReceiver() {
         const val ACTION_TRIGGER_ALARM = "com.clockity.app.ACTION_TRIGGER_ALARM"
         const val ACTION_DISMISS_ALARM = "com.clockity.app.ACTION_DISMISS_ALARM"
         const val ACTION_SNOOZE_ALARM = "com.clockity.app.ACTION_SNOOZE_ALARM"
+        const val ACTION_DISMISS_MISSED_NOTIFICATION = "com.clockity.app.ACTION_DISMISS_MISSED_NOTIFICATION"
 
         const val EXTRA_ALARM_ID = "extra_alarm_id"
         const val EXTRA_ALARM_LABEL = "extra_alarm_label"
@@ -39,9 +40,10 @@ class AlarmReceiver : BroadcastReceiver() {
             ACTION_TRIGGER_ALARM -> {
                 android.util.Log.d("AlarmReceiver", "Triggering alarm #$alarmId ($label at $timeStr)")
 
-                // 1. Dismiss any upcoming notification if still hanging
+                // 1. Dismiss any upcoming notification or previous missed notice if still hanging
                 try {
                     NotificationHelper.cancelUpcomingAlarmNotification(context, alarmId)
+                    NotificationHelper.cancelMissedAlarmNotification(context, alarmId)
                 } catch (_: Exception) {}
 
                 // 2. Start Foreground Alarm Service (audio + vibration)
@@ -86,6 +88,7 @@ class AlarmReceiver : BroadcastReceiver() {
             ACTION_DISMISS_ALARM -> {
                 // Stop service & sound
                 context.stopService(Intent(context, AlarmService::class.java))
+                NotificationHelper.cancelMissedAlarmNotification(context, alarmId)
 
                 // Reschedule or disable once-off alarm in database
                 if (alarmId != -1L) {
@@ -106,9 +109,17 @@ class AlarmReceiver : BroadcastReceiver() {
             ACTION_SNOOZE_ALARM -> {
                 // Stop current ringing
                 context.stopService(Intent(context, AlarmService::class.java))
+                NotificationHelper.cancelMissedAlarmNotification(context, alarmId)
+
                 // Schedule snooze
                 if (alarmId != -1L) {
                     AlarmScheduler.scheduleSnooze(context, alarmId, snoozeMinutes, label)
+                }
+            }
+
+            ACTION_DISMISS_MISSED_NOTIFICATION -> {
+                if (alarmId != -1L) {
+                    NotificationHelper.cancelMissedAlarmNotification(context, alarmId)
                 }
             }
         }

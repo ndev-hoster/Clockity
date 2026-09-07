@@ -14,6 +14,7 @@ class UpcomingAlarmReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_SHOW_UPCOMING = "com.clockity.app.ACTION_SHOW_UPCOMING"
         const val ACTION_DISMISS_UPCOMING = "com.clockity.app.ACTION_DISMISS_UPCOMING"
+        const val ACTION_SNOOZE_UPCOMING = "com.clockity.app.ACTION_SNOOZE_UPCOMING"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -29,6 +30,15 @@ class UpcomingAlarmReceiver : BroadcastReceiver() {
                         NotificationHelper.showUpcomingAlarmNotification(context, alarm)
                     }
                 }
+            }
+
+            ACTION_SNOOZE_UPCOMING -> {
+                // User pressed "Snooze (5m)" on upcoming notice
+                NotificationHelper.cancelUpcomingAlarmNotification(context, alarmId)
+                AlarmScheduler.cancelAlarm(context, alarmId)
+
+                val label = intent.getStringExtra(AlarmReceiver.EXTRA_ALARM_LABEL) ?: "Alarm"
+                AlarmScheduler.scheduleSnooze(context, alarmId, 5, label)
             }
 
             ACTION_DISMISS_UPCOMING -> {

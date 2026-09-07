@@ -11,4 +11,6 @@
     <string name="upcoming_channel_desc">Notifications for upcoming alarms before they ring</string>
     <string name="timer_channel_name">Timers</string>
     <string name="timer_channel_desc">Ongoing timer notifications</string>
+    <string name="missed_alarm_channel_name">Missed Alarms</string>
+    <string name="missed_alarm_channel_desc">Notifications for unanswered alarms</string>
 </resources>

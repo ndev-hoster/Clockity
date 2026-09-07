@@ -7,16 +7,22 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import com.clockity.app.data.local.ClockityDatabase
+import com.clockity.app.utils.AlarmScheduler
 import com.clockity.app.utils.SoundUtils
 import com.clockity.app.utils.VibrationUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class AlarmService : Service() {
 
     private val serviceScope = CoroutineScope(Dispatchers.Main)
     private var wakeLock: PowerManager.WakeLock? = null
+    private var autoTimeoutJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -49,11 +55,38 @@ class AlarmService : Service() {
         SoundUtils.playAlarm(this, isGentleWake)
         VibrationUtils.startVibration(this, vibrationPattern)
 
+        // 4. Auto-timeout after 10 minutes of uninterrupted ringing (triggers Missed Alarm)
+        autoTimeoutJob?.cancel()
+        autoTimeoutJob = serviceScope.launch {
+            delay(10 * 60 * 1000L) // 10 minutes timeout
+
+            if (alarmId != -1L) {
+                // Show Missed Alarm notification
+                NotificationHelper.showMissedAlarmNotification(this@AlarmService, alarmId, label, timeStr)
+
+                // Reschedule repeating alarm or disable one-off alarm in database
+                CoroutineScope(Dispatchers.IO).launch {
+                    val db = ClockityDatabase.getDatabase(this@AlarmService)
+                    val alarm = db.alarmDao().getAlarmById(alarmId)
+                    if (alarm != null) {
+                        if (!alarm.isRepeating()) {
+                            db.alarmDao().setAlarmEnabled(alarmId, false)
+                        } else {
+                            AlarmScheduler.scheduleAlarm(this@AlarmService, alarm)
+                        }
+                    }
+                }
+            }
+
+            stopSelf()
+        }
+
         return START_STICKY
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        autoTimeoutJob?.cancel()
         SoundUtils.stopAlarm()
         VibrationUtils.stopVibration(this)
         try {
