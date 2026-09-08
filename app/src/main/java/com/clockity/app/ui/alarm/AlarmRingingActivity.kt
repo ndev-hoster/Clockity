@@ -108,6 +108,35 @@ class AlarmRingingActivity : ComponentActivity() {
         finish()
     }
 
+    private val timeoutReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == AlarmReceiver.ACTION_ALARM_TIMED_OUT) {
+                val timedOutAlarmId = intent.getLongExtra(AlarmReceiver.EXTRA_ALARM_ID, -1L)
+                if (timedOutAlarmId == -1L || timedOutAlarmId == alarmId) {
+                    com.clockity.app.utils.AppLogger.d("AlarmRingingActivity", "Alarm #$alarmId auto-silenced, closing ringing screen.")
+                    finish()
+                }
+            }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val filter = android.content.IntentFilter(AlarmReceiver.ACTION_ALARM_TIMED_OUT)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(timeoutReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(timeoutReceiver, filter)
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        try {
+            unregisterReceiver(timeoutReceiver)
+        } catch (_: Exception) {}
+    }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
             val behavior = PreferencesManager.getVolumeKeyBehavior(this)

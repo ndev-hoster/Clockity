@@ -9,6 +9,8 @@ import android.os.IBinder
 import android.os.PowerManager
 import com.clockity.app.data.local.ClockityDatabase
 import com.clockity.app.utils.AlarmScheduler
+import com.clockity.app.utils.AppLogger
+import com.clockity.app.utils.PreferencesManager
 import com.clockity.app.utils.SoundUtils
 import com.clockity.app.utils.VibrationUtils
 import kotlinx.coroutines.CoroutineScope
@@ -33,10 +35,14 @@ class AlarmService : Service() {
         val isGentleWake = intent?.getBooleanExtra(AlarmReceiver.EXTRA_GENTLE_WAKE, true) ?: true
         val vibrationPattern = intent?.getStringExtra(AlarmReceiver.EXTRA_VIBRATION_PATTERN) ?: "Basic"
 
-        // 1. Acquire Partial WakeLock (max 10 minutes)
+        val silenceMinutes = PreferencesManager.getAlarmSilenceMins(this)
+        AppLogger.i("AlarmService", "Starting alarm #$alarmId ($label at $timeStr). Silence timeout: $silenceMinutes min")
+
+        // 1. Acquire Partial WakeLock
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
         wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Clockity:AlarmWakeLock")?.apply {
-            acquire(10 * 60 * 1000L)
+            val lockTime = if (silenceMinutes > 0) (silenceMinutes + 1) * 60 * 1000L else 10 * 60 * 1000L
+            acquire(lockTime)
         }
 
         // 2. Build and display foreground notification
@@ -55,30 +61,41 @@ class AlarmService : Service() {
         SoundUtils.playAlarm(this, isGentleWake)
         VibrationUtils.startVibration(this, vibrationPattern)
 
-        // 4. Auto-timeout after 10 minutes of uninterrupted ringing (triggers Missed Alarm)
+        // 4. Auto-silence timeout (triggers Missed Alarm when unanswered)
         autoTimeoutJob?.cancel()
-        autoTimeoutJob = serviceScope.launch {
-            delay(10 * 60 * 1000L) // 10 minutes timeout
+        if (silenceMinutes > 0) {
+            autoTimeoutJob = serviceScope.launch {
+                val timeoutMillis = silenceMinutes * 60 * 1000L
+                AppLogger.d("AlarmService", "Alarm #$alarmId scheduled to auto-silence in $silenceMinutes min ($timeoutMillis ms)")
+                delay(timeoutMillis)
 
-            if (alarmId != -1L) {
-                // Show Missed Alarm notification
-                NotificationHelper.showMissedAlarmNotification(this@AlarmService, alarmId, label, timeStr)
+                AppLogger.w("AlarmService", "Alarm #$alarmId timed out after $silenceMinutes min. Triggering Missed Alarm notification.")
 
-                // Reschedule repeating alarm or disable one-off alarm in database
-                CoroutineScope(Dispatchers.IO).launch {
-                    val db = ClockityDatabase.getDatabase(this@AlarmService)
-                    val alarm = db.alarmDao().getAlarmById(alarmId)
-                    if (alarm != null) {
-                        if (!alarm.isRepeating()) {
-                            db.alarmDao().setAlarmEnabled(alarmId, false)
-                        } else {
-                            AlarmScheduler.scheduleAlarm(this@AlarmService, alarm)
+                if (alarmId != -1L) {
+                    NotificationHelper.showMissedAlarmNotification(this@AlarmService, alarmId, label, timeStr)
+
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val db = ClockityDatabase.getDatabase(this@AlarmService)
+                        val alarm = db.alarmDao().getAlarmById(alarmId)
+                        if (alarm != null) {
+                            if (!alarm.isRepeating()) {
+                                db.alarmDao().setAlarmEnabled(alarmId, false)
+                            } else {
+                                AlarmScheduler.scheduleAlarm(this@AlarmService, alarm)
+                            }
                         }
                     }
                 }
-            }
 
-            stopSelf()
+                // Notify AlarmRingingActivity to finish without user clicking manual dismiss
+                val timeoutIntent = Intent(AlarmReceiver.ACTION_ALARM_TIMED_OUT).apply {
+                    putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+                    setPackage(packageName)
+                }
+                sendBroadcast(timeoutIntent)
+
+                stopSelf()
+            }
         }
 
         return START_STICKY
@@ -95,5 +112,6 @@ class AlarmService : Service() {
             }
         } catch (_: Exception) {}
         serviceScope.cancel()
+        AppLogger.d("AlarmService", "AlarmService destroyed")
     }
 }

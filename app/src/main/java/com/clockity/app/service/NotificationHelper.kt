@@ -14,6 +14,7 @@ import com.clockity.app.data.models.ActiveTimer
 import com.clockity.app.data.models.Alarm
 import com.clockity.app.data.models.PomodoroState
 import com.clockity.app.ui.alarm.AlarmRingingActivity
+import com.clockity.app.utils.AppLogger
 
 object NotificationHelper {
 
@@ -314,8 +315,10 @@ object NotificationHelper {
     }
 
     fun showUpcomingAlarmNotification(context: Context, alarm: Alarm) {
+        createNotificationChannels(context)
         val (timeStr, amPm) = alarm.formatTime12H()
         val fullTime = "$timeStr $amPm"
+        AppLogger.i("NotificationHelper", "Showing upcoming alarm notification: id=${alarm.id}, label='${alarm.label}', time=$fullTime")
 
         val openAppIntent = Intent(context, MainActivity::class.java)
         val openAppPendingIntent = PendingIntent.getActivity(
@@ -367,11 +370,14 @@ object NotificationHelper {
     }
 
     fun cancelUpcomingAlarmNotification(context: Context, alarmId: Long) {
+        AppLogger.d("NotificationHelper", "Cancelling upcoming alarm notification: alarmId=$alarmId")
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.cancel((NOTIFICATION_ID_UPCOMING_BASE + alarmId).toInt())
     }
 
     fun showMissedAlarmNotification(context: Context, alarmId: Long, label: String, timeStr: String) {
+        createNotificationChannels(context)
+        AppLogger.i("NotificationHelper", "showMissedAlarmNotification triggered for alarmId=$alarmId, label='$label', time='$timeStr'")
         val openAppIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("open_tab", 0) // Alarm tab
@@ -408,9 +414,11 @@ object NotificationHelper {
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify((NOTIFICATION_ID_MISSED_BASE + alarmId).toInt(), notification)
+        AppLogger.i("NotificationHelper", "Missed alarm notification posted (id=${NOTIFICATION_ID_MISSED_BASE + alarmId})")
     }
 
     fun cancelMissedAlarmNotification(context: Context, alarmId: Long) {
+        AppLogger.d("NotificationHelper", "Cancelling missed alarm notification: alarmId=$alarmId")
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.cancel((NOTIFICATION_ID_MISSED_BASE + alarmId).toInt())
     }

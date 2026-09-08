@@ -17,6 +17,7 @@ class AlarmReceiver : BroadcastReceiver() {
         const val ACTION_TRIGGER_ALARM = "com.clockity.app.ACTION_TRIGGER_ALARM"
         const val ACTION_DISMISS_ALARM = "com.clockity.app.ACTION_DISMISS_ALARM"
         const val ACTION_SNOOZE_ALARM = "com.clockity.app.ACTION_SNOOZE_ALARM"
+        const val ACTION_ALARM_TIMED_OUT = "com.clockity.app.ACTION_ALARM_TIMED_OUT"
         const val ACTION_DISMISS_MISSED_NOTIFICATION = "com.clockity.app.ACTION_DISMISS_MISSED_NOTIFICATION"
 
         const val EXTRA_ALARM_ID = "extra_alarm_id"
@@ -36,14 +37,15 @@ class AlarmReceiver : BroadcastReceiver() {
         val vibrationPattern = intent.getStringExtra(EXTRA_VIBRATION_PATTERN) ?: "Basic"
         val snoozeMinutes = intent.getIntExtra(EXTRA_SNOOZE_MINUTES, 5)
 
+        com.clockity.app.utils.AppLogger.i("AlarmReceiver", "Received intent action: ${intent.action} for alarm #$alarmId ($label)")
+
         when (intent.action) {
             ACTION_TRIGGER_ALARM -> {
-                android.util.Log.d("AlarmReceiver", "Triggering alarm #$alarmId ($label at $timeStr)")
+                com.clockity.app.utils.AppLogger.i("AlarmReceiver", "Triggering alarm #$alarmId ($label at $timeStr)")
 
-                // 1. Dismiss any upcoming notification or previous missed notice if still hanging
+                // 1. Dismiss any upcoming notification if still hanging
                 try {
                     NotificationHelper.cancelUpcomingAlarmNotification(context, alarmId)
-                    NotificationHelper.cancelMissedAlarmNotification(context, alarmId)
                 } catch (_: Exception) {}
 
                 // 2. Start Foreground Alarm Service (audio + vibration)
@@ -61,7 +63,7 @@ class AlarmReceiver : BroadcastReceiver() {
                         context.startService(serviceIntent)
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("AlarmReceiver", "Failed to start AlarmService, falling back to direct audio", e)
+                    com.clockity.app.utils.AppLogger.e("AlarmReceiver", "Failed to start AlarmService, falling back to direct audio", e)
                     try {
                         com.clockity.app.utils.SoundUtils.playAlarm(context, isGentleWake)
                         com.clockity.app.utils.VibrationUtils.startVibration(context, vibrationPattern)
@@ -81,14 +83,14 @@ class AlarmReceiver : BroadcastReceiver() {
                     }
                     context.startActivity(ringingIntent)
                 } catch (e: Exception) {
-                    android.util.Log.e("AlarmReceiver", "Failed to start AlarmRingingActivity directly", e)
+                    com.clockity.app.utils.AppLogger.e("AlarmReceiver", "Failed to start AlarmRingingActivity directly", e)
                 }
             }
 
             ACTION_DISMISS_ALARM -> {
+                com.clockity.app.utils.AppLogger.i("AlarmReceiver", "Manual dismissal for alarm #$alarmId")
                 // Stop service & sound
                 context.stopService(Intent(context, AlarmService::class.java))
-                NotificationHelper.cancelMissedAlarmNotification(context, alarmId)
 
                 // Reschedule or disable once-off alarm in database
                 if (alarmId != -1L) {
@@ -107,9 +109,9 @@ class AlarmReceiver : BroadcastReceiver() {
             }
 
             ACTION_SNOOZE_ALARM -> {
+                com.clockity.app.utils.AppLogger.i("AlarmReceiver", "Snoozing alarm #$alarmId for $snoozeMinutes mins")
                 // Stop current ringing
                 context.stopService(Intent(context, AlarmService::class.java))
-                NotificationHelper.cancelMissedAlarmNotification(context, alarmId)
 
                 // Schedule snooze
                 if (alarmId != -1L) {

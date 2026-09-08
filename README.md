@@ -100,4 +100,4 @@ adb shell am start -n com.clockity.app.debug/com.clockity.app.MainActivity
 
 ## License
 
-This project is licensed under the Apache License 2.0.
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0). See the LICENSE file for details.

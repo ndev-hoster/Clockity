@@ -55,9 +55,9 @@ object AlarmScheduler {
             )
             val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerMillis, showPendingIntent)
             alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
-            Log.d(TAG, "Scheduled alarm #${alarm.id} with setAlarmClock for $triggerMillis")
+            AppLogger.i(TAG, "Scheduled alarm #${alarm.id} (${alarm.label}) with setAlarmClock for $triggerMillis (${TimeUtils.formatTimeUntil(triggerMillis)})")
         } catch (e: Exception) {
-            Log.w(TAG, "setAlarmClock failed, falling back to setExactAndAllowWhileIdle", e)
+            AppLogger.w(TAG, "setAlarmClock failed, falling back to setExactAndAllowWhileIdle: ${e.message}")
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
                     alarmManager.setAndAllowWhileIdle(
@@ -130,7 +130,9 @@ object AlarmScheduler {
             )
             val alarmClockInfo = AlarmManager.AlarmClockInfo(snoozeMillis, showPendingIntent)
             alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+            AppLogger.i(TAG, "Scheduled snooze for alarm #$alarmId (+${snoozeMinutes}m at $snoozeMillis)")
         } catch (e: Exception) {
+            AppLogger.w(TAG, "setAlarmClock failed for snooze, falling back to setExactAndAllowWhileIdle")
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
                 snoozeMillis,
@@ -161,5 +163,6 @@ object AlarmScheduler {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         alarmManager.cancel(upcomingPendingIntent)
+        AppLogger.i(TAG, "Cancelled alarm #$alarmId and upcoming notification")
     }
 }

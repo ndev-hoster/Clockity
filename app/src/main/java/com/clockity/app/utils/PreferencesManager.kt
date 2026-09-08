@@ -17,10 +17,13 @@ object PreferencesManager {
     private const val KEY_DEFAULT_SNOOZE_MINS = "default_snooze_mins"
     private const val KEY_DEFAULT_SNOOZE_COUNT = "default_snooze_count"
     private const val KEY_LAST_BACKUP_TIME = "last_backup_time"
+    private const val KEY_ALARM_SILENCE_MINS = "alarm_silence_mins"
+    private const val KEY_DEBUG_LOGS_ENABLED = "debug_logs_enabled"
 
     // Default Values
     const val DEFAULT_ACCENT_COLOR = "#3E82F7" // One UI Blue
     const val DEFAULT_VOLUME_BEHAVIOR = "Snooze"
+    const val DEFAULT_ALARM_SILENCE_MINS = 1 // 1 minute auto-silence timeout
 
     private val _accentColorHex = MutableStateFlow(DEFAULT_ACCENT_COLOR)
     val accentColorHex: StateFlow<String> = _accentColorHex.asStateFlow()
@@ -43,6 +46,12 @@ object PreferencesManager {
     private val _lastBackupTimestamp = MutableStateFlow(0L)
     val lastBackupTimestamp: StateFlow<Long> = _lastBackupTimestamp.asStateFlow()
 
+    private val _alarmSilenceMins = MutableStateFlow(DEFAULT_ALARM_SILENCE_MINS)
+    val alarmSilenceMins: StateFlow<Int> = _alarmSilenceMins.asStateFlow()
+
+    private val _isDebugLogsEnabled = MutableStateFlow(false)
+    val isDebugLogsEnabled: StateFlow<Boolean> = _isDebugLogsEnabled.asStateFlow()
+
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
@@ -56,6 +65,8 @@ object PreferencesManager {
         _defaultSnoozeMins.value = prefs.getInt(KEY_DEFAULT_SNOOZE_MINS, 5)
         _defaultSnoozeRepeatCount.value = prefs.getInt(KEY_DEFAULT_SNOOZE_COUNT, 3)
         _lastBackupTimestamp.value = prefs.getLong(KEY_LAST_BACKUP_TIME, 0L)
+        _alarmSilenceMins.value = prefs.getInt(KEY_ALARM_SILENCE_MINS, DEFAULT_ALARM_SILENCE_MINS)
+        _isDebugLogsEnabled.value = prefs.getBoolean(KEY_DEBUG_LOGS_ENABLED, false)
     }
 
     fun setAccentColor(context: Context, hex: String) {
@@ -95,5 +106,25 @@ object PreferencesManager {
     fun setLastBackupTimestamp(context: Context, timestamp: Long) {
         _lastBackupTimestamp.value = timestamp
         getPrefs(context).edit().putLong(KEY_LAST_BACKUP_TIME, timestamp).apply()
+    }
+
+    fun setAlarmSilenceMins(context: Context, mins: Int) {
+        _alarmSilenceMins.value = mins
+        getPrefs(context).edit().putInt(KEY_ALARM_SILENCE_MINS, mins).apply()
+        AppLogger.i("PreferencesManager", "Alarm silence duration set to $mins min")
+    }
+
+    fun getAlarmSilenceMins(context: Context): Int {
+        return getPrefs(context).getInt(KEY_ALARM_SILENCE_MINS, DEFAULT_ALARM_SILENCE_MINS)
+    }
+
+    fun setDebugLogsEnabled(context: Context, enabled: Boolean) {
+        _isDebugLogsEnabled.value = enabled
+        getPrefs(context).edit().putBoolean(KEY_DEBUG_LOGS_ENABLED, enabled).apply()
+        AppLogger.setLoggingEnabled(enabled)
+    }
+
+    fun isDebugLogsEnabled(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_DEBUG_LOGS_ENABLED, false)
     }
 }

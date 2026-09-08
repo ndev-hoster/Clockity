@@ -1,5 +1,9 @@
 package com.clockity.app.ui.settings
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
 import android.graphics.Color.parseColor
 import android.net.Uri
 import android.widget.Toast
@@ -7,22 +11,19 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.RestartAlt
-import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,13 +31,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.clockity.app.data.local.ClockityDatabase
+import com.clockity.app.service.NotificationHelper
 import com.clockity.app.ui.components.OneUIHeader
 import com.clockity.app.ui.components.OneUISwitch
 import com.clockity.app.ui.theme.*
+import com.clockity.app.utils.AppLogger
 import com.clockity.app.utils.BackupManager
 import com.clockity.app.utils.PreferencesManager
 import kotlinx.coroutines.Dispatchers
@@ -60,6 +66,8 @@ fun SettingsScreen(
     val volumeKeyBehavior by PreferencesManager.volumeKeyBehavior.collectAsState()
     val defaultSnoozeMins by PreferencesManager.defaultSnoozeMins.collectAsState()
     val defaultSnoozeRepeat by PreferencesManager.defaultSnoozeRepeatCount.collectAsState()
+    val alarmSilenceMins by PreferencesManager.alarmSilenceMins.collectAsState()
+    val isDebugLogsEnabled by PreferencesManager.isDebugLogsEnabled.collectAsState()
     val lastBackupTimestamp by PreferencesManager.lastBackupTimestamp.collectAsState()
 
     var statusMessage by remember { mutableStateOf<String?>(null) }
@@ -68,6 +76,7 @@ fun SettingsScreen(
     var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
     var showRestoreConfirmDialog by remember { mutableStateOf(false) }
     var showResetConfirmDialog by remember { mutableStateOf(false) }
+    var showLogsDialog by remember { mutableStateOf(false) }
 
     val accentColor = remember(currentAccentHex) {
         try { Color(parseColor(currentAccentHex)) } catch (_: Exception) { OneUIBlue }
@@ -261,6 +270,50 @@ fun SettingsScreen(
                                             .clip(RoundedCornerShape(10.dp))
                                             .background(if (isSelected) accentColor else OneUICardElevated)
                                             .clickable { PreferencesManager.setDefaultSnoozeRepeatCount(context, count) }
+                                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            color = if (isSelected) OneUIBlack else OneUITextPrimary,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(color = OneUIDivider, thickness = 0.5.dp)
+
+                        // Silence Alarm After
+                        Column {
+                            Text(
+                                text = "Silence Alarm After",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = OneUITextPrimary
+                            )
+                            Text(
+                                text = "Duration the alarm will sound before automatically stopping and marking as missed",
+                                fontSize = 12.sp,
+                                color = OneUITextSecondary,
+                                modifier = Modifier.padding(top = 2.dp, bottom = 8.dp)
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                listOf(1 to "1 min", 2 to "2 mins", 5 to "5 mins", 10 to "10 mins", 15 to "15 mins", 0 to "Never").forEach { (mins, label) ->
+                                    val isSelected = alarmSilenceMins == mins
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(if (isSelected) accentColor else OneUICardElevated)
+                                            .clickable { PreferencesManager.setAlarmSilenceMins(context, mins) }
                                             .padding(horizontal = 12.dp, vertical = 8.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -591,6 +644,111 @@ fun SettingsScreen(
                 }
 
                 // ==========================================
+                // SECTION: DIAGNOSTICS & DEBUGGING
+                // ==========================================
+                Text(
+                    text = "Diagnostics & Debugging",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = OneUITextSecondary,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = OneUICardDark,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Debug Logging Switch
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Enable Debug Logging",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = OneUITextPrimary
+                                )
+                                Text(
+                                    text = "Record detailed system events for alarms, timers, and notifications",
+                                    fontSize = 12.sp,
+                                    color = OneUITextSecondary,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            OneUISwitch(
+                                checked = isDebugLogsEnabled,
+                                onCheckedChange = { PreferencesManager.setDebugLogsEnabled(context, it) },
+                                checkedTrackColor = accentColor
+                            )
+                        }
+
+                        HorizontalDivider(color = OneUIDivider, thickness = 0.5.dp)
+
+                        // View Logs Button & Test Missed Alarm Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Button(
+                                onClick = { showLogsDialog = true },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = OneUICardElevated,
+                                    contentColor = OneUITextPrimary
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.BugReport,
+                                    contentDescription = "View Logs",
+                                    tint = accentColor,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = "View Logs", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            }
+
+                            Button(
+                                onClick = {
+                                    val nowStr = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+                                    NotificationHelper.showMissedAlarmNotification(
+                                        context,
+                                        System.currentTimeMillis(),
+                                        "Test Missed Alarm",
+                                        nowStr
+                                    )
+                                    Toast.makeText(context, "Test missed alarm notification sent!", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = OneUICardElevated,
+                                    contentColor = OneUITextPrimary
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.NotificationsActive,
+                                    contentDescription = "Test Missed",
+                                    tint = OneUIYellow,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = "Test Missed", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+
+                // ==========================================
                 // SECTION 5: ABOUT CLOCKITY
                 // ==========================================
                 Text(
@@ -627,7 +785,7 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(text = "Version", fontSize = 15.sp, color = OneUITextPrimary)
-                            Text(text = "1.7.0", fontSize = 15.sp, color = OneUITextSecondary)
+                            Text(text = "1.7.1-rc1", fontSize = 15.sp, color = OneUITextSecondary)
                         }
 
                         HorizontalDivider(color = OneUIDivider, thickness = 0.5.dp)
@@ -778,5 +936,351 @@ fun SettingsScreen(
             containerColor = OneUICardElevated,
             shape = RoundedCornerShape(24.dp)
         )
+    }
+
+    // Diagnostic Logs Viewer Dialog
+    if (showLogsDialog) {
+        LogsViewerDialog(
+            accentColor = accentColor,
+            onDismiss = { showLogsDialog = false }
+        )
+    }
+}
+
+@Composable
+fun LogsViewerDialog(
+    accentColor: Color,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val logs by AppLogger.logsFlow.collectAsState()
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedLevel by remember { mutableStateOf("ALL") }
+
+    val filteredLogs = remember(logs, searchQuery, selectedLevel) {
+        logs.filter { entry ->
+            val matchesLevel = when (selectedLevel) {
+                "ALL" -> true
+                "ERROR" -> entry.level == "E"
+                "WARN" -> entry.level == "W"
+                "INFO" -> entry.level == "I"
+                "DEBUG" -> entry.level == "D"
+                else -> true
+            }
+            val matchesQuery = if (searchQuery.isBlank()) true else {
+                entry.message.contains(searchQuery, ignoreCase = true) ||
+                entry.tag.contains(searchQuery, ignoreCase = true)
+            }
+            matchesLevel && matchesQuery
+        }.reversed() // Most recent first
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            shape = RoundedCornerShape(24.dp),
+            color = OneUIBlack,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Diagnostic Logs",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = OneUITextPrimary
+                        )
+                        Text(
+                            text = "${filteredLogs.size} of ${logs.size} entries",
+                            fontSize = 12.sp,
+                            color = OneUITextSecondary
+                        )
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = OneUITextSecondary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Search Bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search logs...", fontSize = 13.sp, color = OneUITextSecondary) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = OneUITextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Clear search",
+                                    tint = OneUITextSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = accentColor,
+                        unfocusedBorderColor = OneUIDivider,
+                        focusedContainerColor = OneUICardDark,
+                        unfocusedContainerColor = OneUICardDark,
+                        focusedTextColor = OneUITextPrimary,
+                        unfocusedTextColor = OneUITextPrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Level Filter Chips
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    listOf("ALL", "ERROR", "WARN", "INFO", "DEBUG").forEach { lvl ->
+                        val isSelected = selectedLevel == lvl
+                        val chipColor = when (lvl) {
+                            "ERROR" -> OneUIRed
+                            "WARN" -> OneUIYellow
+                            "INFO" -> accentColor
+                            "DEBUG" -> OneUITextSecondary
+                            else -> accentColor
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) chipColor.copy(alpha = 0.25f) else OneUICardDark)
+                                .border(
+                                    BorderStroke(
+                                        1.dp,
+                                        if (isSelected) chipColor else Color.Transparent
+                                    ),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .clickable { selectedLevel = lvl }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = lvl,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) chipColor else OneUITextSecondary
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Log List
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(OneUICardDark)
+                        .padding(8.dp)
+                ) {
+                    if (filteredLogs.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (logs.isEmpty()) "No logs captured yet.\nEnable 'Debug Logging' to record events." else "No matching logs found",
+                                fontSize = 13.sp,
+                                color = OneUITextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    } else {
+                        SelectionContainer {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                items(filteredLogs, key = { it.id }) { entry ->
+                                    val levelColor = when (entry.level) {
+                                        "E" -> OneUIRed
+                                        "W" -> OneUIYellow
+                                        "I" -> accentColor
+                                        else -> OneUITextSecondary
+                                    }
+                                    val timeFormatted = remember(entry.timestamp) {
+                                        SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date(entry.timestamp))
+                                    }
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(OneUICardElevated.copy(alpha = 0.5f))
+                                            .padding(8.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(4.dp))
+                                                    .background(levelColor.copy(alpha = 0.2f))
+                                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = entry.level,
+                                                    color = levelColor,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontFamily = FontFamily.Monospace
+                                                )
+                                            }
+                                            Text(
+                                                text = timeFormatted,
+                                                color = OneUITextSecondary,
+                                                fontSize = 11.sp,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                            Text(
+                                                text = entry.tag,
+                                                color = accentColor,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(3.dp))
+                                        Text(
+                                            text = entry.message,
+                                            color = OneUITextPrimary,
+                                            fontSize = 12.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Bottom Action Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Copy to clipboard
+                    Button(
+                        onClick = {
+                            val formatted = AppLogger.getFormattedLogs()
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("Clockity Logs", formatted)
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "Logs copied to clipboard", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = OneUICardElevated,
+                            contentColor = OneUITextPrimary
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Copy",
+                            tint = accentColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Copy", fontSize = 12.sp)
+                    }
+
+                    // Share logs
+                    Button(
+                        onClick = {
+                            val formatted = AppLogger.getFormattedLogs()
+                            val sendIntent = Intent().apply {
+                                action = Intent.ACTION_SEND
+                                putExtra(Intent.EXTRA_TEXT, formatted)
+                                type = "text/plain"
+                            }
+                            context.startActivity(Intent.createChooser(sendIntent, "Share Clockity Logs"))
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = OneUICardElevated,
+                            contentColor = OneUITextPrimary
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Share",
+                            tint = OneUITextPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Share", fontSize = 12.sp)
+                    }
+
+                    // Clear logs
+                    Button(
+                        onClick = {
+                            AppLogger.clearLogs()
+                            Toast.makeText(context, "Logs cleared", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = OneUIRed.copy(alpha = 0.2f),
+                            contentColor = OneUIRed
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Clear",
+                            tint = OneUIRed,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Clear", fontSize = 12.sp)
+                    }
+                }
+            }
+        }
     }
 }
